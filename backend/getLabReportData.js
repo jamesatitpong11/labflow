@@ -325,42 +325,94 @@ async function getLabReportData({ dateFrom, dateTo, department }) {
               // Handle different item structures
               const testCode = item.code || item.name || item.testCode;
               const testName = item.name || item.testName;
+              const itemType = item.type; // 'individual' or 'package'
               
-              console.log('Processing item:', testCode, testName);
+              console.log('Processing item:', { testCode, testName, itemType });
               
-              // Direct mapping by code or name
-              if (testCode && LAB_TEST_MAPPINGS[testCode]) {
-                labTests[LAB_TEST_MAPPINGS[testCode]] = true;
-                console.log('Mapped by code:', testCode, '->', LAB_TEST_MAPPINGS[testCode]);
-              } else if (testName && LAB_TEST_MAPPINGS[testName]) {
-                labTests[LAB_TEST_MAPPINGS[testName]] = true;
-                console.log('Mapped by name:', testName, '->', LAB_TEST_MAPPINGS[testName]);
-              } else {
-                // Try to find in labtests collection
-                const foundTest = visit.labtests?.find(lt => 
-                  lt.code === testCode || lt.name === testName || 
-                  lt.code === testName || lt.name === testCode
+              // Handle package/group items (Lab Groups)
+              if (itemType === 'package' && item.individualTests && item.individualTests.length > 0) {
+                console.log('Processing package with', item.individualTests.length, 'individual tests');
+                item.individualTests.forEach(individualTest => {
+                  const individualCode = individualTest.code;
+                  const individualName = individualTest.name;
+                  
+                  if (individualCode && LAB_TEST_MAPPINGS[individualCode]) {
+                    labTests[LAB_TEST_MAPPINGS[individualCode]] = true;
+                    console.log('Mapped package test by code:', individualCode, '->', LAB_TEST_MAPPINGS[individualCode]);
+                  } else if (individualName && LAB_TEST_MAPPINGS[individualName]) {
+                    labTests[LAB_TEST_MAPPINGS[individualName]] = true;
+                    console.log('Mapped package test by name:', individualName, '->', LAB_TEST_MAPPINGS[individualName]);
+                  } else {
+                    console.log('No mapping found for package test:', individualCode, individualName);
+                  }
+                });
+              }
+              // Handle package/group items using groupDetails
+              else if (itemType === 'package' && item.groupDetails) {
+                console.log('Processing package using groupDetails:', item.groupDetails.name);
+                // Find the lab group in the visit data
+                const foundGroup = visit.labgroups?.find(lg => 
+                  lg._id?.toString() === item.groupDetails._id?.toString() ||
+                  lg.code === item.groupDetails.code ||
+                  lg.name === item.groupDetails.name
                 );
-                if (foundTest && LAB_TEST_MAPPINGS[foundTest.code]) {
-                  labTests[LAB_TEST_MAPPINGS[foundTest.code]] = true;
-                  console.log('Found and mapped test:', foundTest.code, '->', LAB_TEST_MAPPINGS[foundTest.code]);
-                }
                 
-                // Try to find in labgroups collection
+                if (foundGroup && foundGroup.labTests && foundGroup.labTests.length > 0) {
+                  console.log('Found labgroup with', foundGroup.labTests.length, 'test IDs');
+                  // Map test IDs to actual tests
+                  foundGroup.labTests.forEach(testId => {
+                    const foundTest = visit.labtests?.find(lt => 
+                      lt._id?.toString() === testId.toString()
+                    );
+                    if (foundTest && LAB_TEST_MAPPINGS[foundTest.code]) {
+                      labTests[LAB_TEST_MAPPINGS[foundTest.code]] = true;
+                      console.log('Mapped group test via ID:', foundTest.code, '->', LAB_TEST_MAPPINGS[foundTest.code]);
+                    }
+                  });
+                }
+              }
+              // Handle individual items
+              else if (itemType === 'individual' || !itemType) {
+                // Direct mapping by code or name
+                if (testCode && LAB_TEST_MAPPINGS[testCode]) {
+                  labTests[LAB_TEST_MAPPINGS[testCode]] = true;
+                  console.log('Mapped individual test by code:', testCode, '->', LAB_TEST_MAPPINGS[testCode]);
+                } else if (testName && LAB_TEST_MAPPINGS[testName]) {
+                  labTests[LAB_TEST_MAPPINGS[testName]] = true;
+                  console.log('Mapped individual test by name:', testName, '->', LAB_TEST_MAPPINGS[testName]);
+                } else {
+                  // Try to find in labtests collection
+                  const foundTest = visit.labtests?.find(lt => 
+                    lt.code === testCode || lt.name === testName || 
+                    lt.code === testName || lt.name === testCode
+                  );
+                  if (foundTest && LAB_TEST_MAPPINGS[foundTest.code]) {
+                    labTests[LAB_TEST_MAPPINGS[foundTest.code]] = true;
+                    console.log('Found and mapped individual test:', foundTest.code, '->', LAB_TEST_MAPPINGS[foundTest.code]);
+                  } else {
+                    console.log('No mapping found for individual test:', testCode, testName);
+                  }
+                }
+              }
+              // Fallback: Try to find in labgroups collection (for backward compatibility)
+              else {
                 const foundGroup = visit.labgroups?.find(lg => 
                   lg.code === testCode || lg.name === testName ||
                   lg.code === testName || lg.name === testCode
                 );
-                if (foundGroup && foundGroup.tests && foundGroup.tests.length > 0) {
-                  console.log('Found labgroup with tests:', foundGroup.tests.length);
-                  foundGroup.tests.forEach(testInGroup => {
-                    if (LAB_TEST_MAPPINGS[testInGroup.code]) {
-                      labTests[LAB_TEST_MAPPINGS[testInGroup.code]] = true;
-                      console.log('Mapped group test:', testInGroup.code, '->', LAB_TEST_MAPPINGS[testInGroup.code]);
+                if (foundGroup && foundGroup.labTests && foundGroup.labTests.length > 0) {
+                  console.log('Found labgroup (fallback) with', foundGroup.labTests.length, 'test IDs');
+                  foundGroup.labTests.forEach(testId => {
+                    const foundTest = visit.labtests?.find(lt => 
+                      lt._id?.toString() === testId.toString()
+                    );
+                    if (foundTest && LAB_TEST_MAPPINGS[foundTest.code]) {
+                      labTests[LAB_TEST_MAPPINGS[foundTest.code]] = true;
+                      console.log('Mapped fallback group test:', foundTest.code, '->', LAB_TEST_MAPPINGS[foundTest.code]);
                     }
                   });
                 } else {
-                  console.log('No mapping found for:', testCode, testName);
+                  console.log('No mapping found (fallback):', testCode, testName);
                 }
               }
               
@@ -420,18 +472,66 @@ async function getLabReportData({ dateFrom, dateTo, department }) {
     });
 
     const todayPatients = todayVisits.length;
+    
+    // Calculate total tests sold today (including duplicates and packages)
     const todayTests = todayVisits.reduce((sum, visit) => {
-      if (visit.orders && visit.orders.length > 0) {
-        return sum + visit.orders.reduce((orderSum, order) => {
-          return orderSum + (order.items ? order.items.length : 0);
+      // Handle both old and new order structures
+      const allOrders = [...(visit.orders || []), ...(visit.ordersByVisitId || [])];
+      
+      if (allOrders.length > 0) {
+        return sum + allOrders.reduce((orderSum, order) => {
+          // Handle both old structure (items) and new structure (labOrders)
+          const orderItems = order.items || order.labOrders || [];
+          
+          let orderTestCount = 0;
+          orderItems.forEach(item => {
+            const itemType = item.type;
+            
+            if (itemType === 'package') {
+              // For packages, count individual tests within the package
+              if (item.individualTests && item.individualTests.length > 0) {
+                orderTestCount += item.individualTests.length;
+                console.log(`Package "${item.name}" contains ${item.individualTests.length} tests`);
+              } else if (item.groupDetails) {
+                // If no individualTests, try to get count from groupDetails
+                const foundGroup = visit.labgroups?.find(lg => 
+                  lg._id?.toString() === item.groupDetails._id?.toString() ||
+                  lg.code === item.groupDetails.code ||
+                  lg.name === item.groupDetails.name
+                );
+                if (foundGroup && foundGroup.labTests) {
+                  orderTestCount += foundGroup.labTests.length;
+                  console.log(`Package "${item.name}" (via groupDetails) contains ${foundGroup.labTests.length} tests`);
+                } else {
+                  // Fallback: count as 1 if we can't determine individual test count
+                  orderTestCount += 1;
+                  console.log(`Package "${item.name}" counted as 1 test (fallback)`);
+                }
+              } else {
+                // Fallback: count as 1 if we can't determine individual test count
+                orderTestCount += 1;
+                console.log(`Package "${item.name}" counted as 1 test (fallback)`);
+              }
+            } else {
+              // Individual tests count as 1 each
+              orderTestCount += 1;
+              console.log(`Individual test "${item.name || item.testName}" counted as 1 test`);
+            }
+          });
+          
+          console.log(`Order total test count: ${orderTestCount}`);
+          return orderSum + orderTestCount;
         }, 0);
       }
       return sum;
     }, 0);
 
     const todayRevenue = todayVisits.reduce((sum, visit) => {
-      if (visit.orders && visit.orders.length > 0) {
-        return sum + visit.orders.reduce((orderSum, order) => {
+      // Handle both old and new order structures
+      const allOrders = [...(visit.orders || []), ...(visit.ordersByVisitId || [])];
+      
+      if (allOrders.length > 0) {
+        return sum + allOrders.reduce((orderSum, order) => {
           return orderSum + (order.totalAmount || 0);
         }, 0);
       }

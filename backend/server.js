@@ -6,7 +6,7 @@ const crypto = require('crypto');
 require('dotenv').config();
 
 const app = express();
-const PORT = process.env.PORT || 3002;
+const PORT = process.env.PORT || 3001;
 
 // MongoDB connection
 const MONGODB_URI = process.env.MONGODB_URI;
@@ -359,6 +359,47 @@ app.get('/api/auth/validate', validateUserSession, async (req, res) => {
   } catch (error) {
     console.error('Error validating session:', error);
     res.status(500).json({ error: 'ไม่สามารถตรวจสอบเซสชั่นได้' });
+  }
+});
+
+// Get all users (for authentication purposes)
+app.get('/api/auth/users', async (req, res) => {
+  try {
+    // Get all users but exclude passwords for security
+    const users = await db.collection('users').find({}, { 
+      projection: { password: 0 } // Exclude password field
+    }).toArray();
+    
+    res.json(users);
+  } catch (error) {
+    console.error('Error fetching users:', error);
+    res.status(500).json({ error: 'ไม่สามารถดึงข้อมูลผู้ใช้ได้' });
+  }
+});
+
+// Get all users with passwords (for delete authentication)
+app.get('/api/users', async (req, res) => {
+  try {
+    // Get all users including passwords (for authentication purposes)
+    const users = await db.collection('users').find({}).toArray();
+    
+    // Debug: Log users data to see what's actually in the database
+    console.log('=== USERS API DEBUG ===');
+    console.log('Users from database:', JSON.stringify(users, null, 2));
+    console.log('Users count:', users.length);
+    users.forEach((user, index) => {
+      console.log(`User ${index + 1}:`, {
+        username: user.username,
+        password: user.password,
+        hasPassword: user.password !== undefined,
+        passwordType: typeof user.password
+      });
+    });
+    
+    res.json(users);
+  } catch (error) {
+    console.error('Error fetching users with passwords:', error);
+    res.status(500).json({ error: 'ไม่สามารถดึงข้อมูลผู้ใช้ได้' });
   }
 });
 
@@ -1928,8 +1969,10 @@ app.get('/api/dashboard/recent-visits', async (req, res) => {
       {
         $lookup: {
           from: 'orders',
-          localField: 'visitNumber',
-          foreignField: 'visitNumber',
+          let: { visitId: { $toString: '$_id' } },
+          pipeline: [
+            { $match: { $expr: { $eq: ['$visitId', '$$visitId'] } } }
+          ],
           as: 'orders'
         }
       },
@@ -1937,22 +1980,26 @@ app.get('/api/dashboard/recent-visits', async (req, res) => {
         $project: {
           visitId: { $toString: '$_id' },
           visitNumber: 1,
+          patientTitle: { $arrayElemAt: ['$patient.title', 0] },
+          patientFirstName: { $arrayElemAt: ['$patient.firstName', 0] },
+          patientLastName: { $arrayElemAt: ['$patient.lastName', 0] },
           patientName: {
             $concat: [
-              { $arrayElemAt: ['$patient.title', 0] },
-              { $arrayElemAt: ['$patient.firstName', 0] },
+              { $ifNull: [{ $arrayElemAt: ['$patient.title', 0] }, ''] },
+              { $ifNull: [{ $arrayElemAt: ['$patient.firstName', 0] }, ''] },
               ' ',
-              { $arrayElemAt: ['$patient.lastName', 0] }
+              { $ifNull: [{ $arrayElemAt: ['$patient.lastName', 0] }, ''] }
             ]
           },
           tests: {
             $reduce: {
-              input: '$orders.items',
+              input: '$orders.labOrders',
               initialValue: [],
               in: { $concatArrays: ['$$value', '$$this'] }
             }
           },
-          status: { $arrayElemAt: ['$orders.status', 0] },
+          visitStatus: '$status',
+          orderStatus: { $arrayElemAt: ['$orders.status', 0] },
           time: {
             $dateToString: {
               format: '%H:%M',
@@ -1966,15 +2013,42 @@ app.get('/api/dashboard/recent-visits', async (req, res) => {
       { $limit: limit }
     ]).toArray();
 
+    // Debug: Check orders for each visit
+    for (const visit of visits) {
+      const ordersForVisit = await db.collection('orders').find({visitId: visit.visitId}).toArray();
+      console.log(`Orders for visit ${visit.visitNumber} (${visit.visitId}):`, ordersForVisit.length);
+      if (ordersForVisit.length > 0) {
+        console.log('Sample order:', ordersForVisit[0]);
+      }
+    }
+
     // Process the results to extract test names
-    const processedVisits = visits.map(visit => ({
-      visitId: visit.visitId,
-      visitNumber: visit.visitNumber,
-      patientName: visit.patientName,
-      tests: visit.tests ? visit.tests.map(item => item.name || item.testName || 'Unknown Test') : [],
-      status: visit.status || 'pending',
-      time: visit.time
-    }));
+    const processedVisits = visits.map(visit => {
+      // Use visit status first, then order status, then default to pending
+      let status = visit.visitStatus || visit.orderStatus || 'pending';
+      
+      // Log for debugging
+      console.log(`=== Visit ${visit.visitNumber} Debug ===`);
+      console.log('visitId:', visit.visitId);
+      console.log('visitStatus:', visit.visitStatus);
+      console.log('orderStatus:', visit.orderStatus);
+      console.log('final status:', status);
+      console.log('raw tests:', visit.tests);
+      console.log('orders count:', visit.orders ? visit.orders.length : 0);
+      console.log('orders:', visit.orders);
+      
+      return {
+        visitId: visit.visitId,
+        visitNumber: visit.visitNumber,
+        patientTitle: visit.patientTitle || '',
+        patientFirstName: visit.patientFirstName || '',
+        patientLastName: visit.patientLastName || '',
+        patientName: visit.patientName,
+        tests: visit.tests ? visit.tests.flat().map(item => item.testName || item.name || 'Unknown Test') : [],
+        status: status,
+        time: visit.time
+      };
+    });
 
     res.json(processedVisits);
   } catch (error) {
@@ -2007,6 +2081,132 @@ app.get('/api/dashboard/system-status', async (req, res) => {
   } catch (error) {
     console.error('Error checking system status:', error);
     res.status(500).json({ error: 'ไม่สามารถตรวจสอบสถานะระบบได้' });
+  }
+});
+
+// Get monthly revenue data
+app.get('/api/dashboard/monthly-revenue', async (req, res) => {
+  try {
+    const months = parseInt(req.query.months) || 6;
+    const monthNames = ['ม.ค.', 'ก.พ.', 'มี.ค.', 'เม.ย.', 'พ.ค.', 'มิ.ย.', 'ก.ค.', 'ส.ค.', 'ก.ย.', 'ต.ค.', 'พ.ย.', 'ธ.ค.'];
+    
+    const currentDate = new Date();
+    const revenueData = [];
+    
+    // Generate data for the requested number of months
+    for (let i = months - 1; i >= 0; i--) {
+      const date = new Date(currentDate.getFullYear(), currentDate.getMonth() - i, 1);
+      const nextMonth = new Date(date.getFullYear(), date.getMonth() + 1, 1);
+      
+      const monthIndex = date.getMonth();
+      const year = date.getFullYear();
+      const monthKey = `${year}-${(monthIndex + 1).toString().padStart(2, '0')}`;
+      const monthName = `${monthNames[monthIndex]} ${year}`;
+      
+      // Get revenue for this month from orders collection
+      const monthRevenue = await db.collection('orders').aggregate([
+        {
+          $match: {
+            createdAt: { $gte: date, $lt: nextMonth },
+            status: { $ne: 'cancelled' } // Exclude cancelled orders
+          }
+        },
+        {
+          $group: {
+            _id: null,
+            total: { $sum: '$totalAmount' }
+          }
+        }
+      ]).toArray();
+      
+      revenueData.push({
+        month: monthKey,
+        monthName: monthName,
+        revenue: monthRevenue[0]?.total || 0
+      });
+    }
+    
+    res.json(revenueData);
+  } catch (error) {
+    console.error('Error fetching monthly revenue:', error);
+    res.status(500).json({ error: 'ไม่สามารถดึงข้อมูลรายได้รายเดือนได้' });
+  }
+});
+
+// Get revenue breakdown by payment method
+app.get('/api/dashboard/revenue-breakdown', async (req, res) => {
+  try {
+    const { date } = req.query;
+    
+    // Use provided date or default to today
+    const selectedDate = date ? new Date(date) : new Date();
+    const todayStart = new Date(selectedDate.getFullYear(), selectedDate.getMonth(), selectedDate.getDate());
+    const todayEnd = new Date(todayStart);
+    todayEnd.setDate(todayEnd.getDate() + 1);
+
+    // Get revenue breakdown by payment method
+    const revenueBreakdown = await db.collection('orders').aggregate([
+      {
+        $match: {
+          createdAt: { $gte: todayStart, $lt: todayEnd },
+          status: { $ne: 'cancelled' } // Exclude cancelled orders
+        }
+      },
+      {
+        $group: {
+          _id: '$paymentMethod',
+          total: { $sum: '$totalAmount' }
+        }
+      }
+    ]).toArray();
+
+    // Initialize breakdown object
+    const breakdown = {
+      cash: 0,
+      creditCard: 0,
+      bankTransfer: 0,
+      insurance: 0,
+      other: 0,
+      total: 0
+    };
+
+    // Process the results and map payment methods
+    revenueBreakdown.forEach(item => {
+      const amount = item.total || 0;
+      breakdown.total += amount;
+
+      switch (item._id?.toLowerCase()) {
+        case 'cash':
+        case 'เงินสด':
+          breakdown.cash += amount;
+          break;
+        case 'credit_card':
+        case 'creditcard':
+        case 'บัตรเครดิต':
+          breakdown.creditCard += amount;
+          break;
+        case 'bank_transfer':
+        case 'banktransfer':
+        case 'transfer':
+        case 'โอนเงิน':
+          breakdown.bankTransfer += amount;
+          break;
+        case 'insurance':
+        case 'ประกันสังคม':
+        case 'สปสช.':
+        case 'สปสช':
+          breakdown.insurance += amount;
+          break;
+        default:
+          breakdown.other += amount;
+          break;
+      }
+    });
+
+    res.json(breakdown);
+  } catch (error) {
+    console.error('Error fetching revenue breakdown:', error);
+    res.status(500).json({ error: 'ไม่สามารถดึงข้อมูลรายละเอียดรายได้ได้' });
   }
 });
 
