@@ -12,6 +12,14 @@ dist
 dist-ssr
 *.local
 
+# Electron build files (too large for GitHub)
+dist-electron/
+*.exe
+*.dmg
+*.AppImage
+*.deb
+*.rpm
+
 # Editor directories and files
 .vscode/*
 !.vscode/extensions.json
