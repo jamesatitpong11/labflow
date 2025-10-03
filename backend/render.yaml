@@ -1,0 +1,15 @@
+services:
+  - type: web
+    name: labflow-clinic-backend
+    env: node
+    plan: free
+    buildCommand: npm install
+    startCommand: npm start
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: PORT
+        generateValue: true
+      - key: MONGODB_URI
+        sync: false  # Set this manually in Render dashboard
+    healthCheckPath: /api/health

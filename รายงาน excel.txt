@@ -1,0 +1,64 @@
+วิธีสร้าง admin: node scripts/createAdmin.js
+
+รายงาน excel
+ชื่อว่า ข้อมูลรายชื่อลงทะเบียน
+เลข visit = visitNumber (visits)
+ln = ln (patients)
+เลขบัตรประชาชน = idCard (patients)
+คำนำหน้า = title (patients)
+ชื่อ = firstName (patients)
+นามสกุล = lastName (patients)
+อายุ = age (patients)
+วันเกิด = birthdate (patients)
+เพศ = gender (patients)
+เบอร์โทร = phoneNumber (patients)
+น้ำหนัก = weight (visits)
+ส่วนสูง = height (visits)
+ความดันโลหิต = bloodPressure (visits)
+ชีพจร = pulse (visits)
+ที่อยู่ = address (patients)
+หน่วยงาน = department (visits)
+ส่งตรวจจาก = referringOrganization (visits)
+สิทธิ = patientRights (visits)
+วันที่ลงทะเบียน = createdAt (patients)
+วันที่มาตรวจ = visitDate (visits)
+
+รายงาน excel
+ชื่อว่า รายงานการขาย
+เลข visit = visitNumber (visits)
+ln = ln (patients)
+คำนำหน้า = title (patients)
+ชื่อ = firstName (patients)
+นามสกุล = lastName (patients)
+อายุ = age (patients)
+สิทธิ = rights (visits)
+วันที่ = createdAt (orders)
+วิธีการชำระเงิน = paymentMethod
+รายการขาย (items) = items ให้แบ่งออก 1 รายการ 1 คอลัมม์
+ในส่วนของ items แต่ละคอลัมม์ ให้ใส่ ราคา แต่ละ items 
+รวมเงิน = totalAmount (orders)
+
+
+เวชระเบียน
+โลโก้บริษัท = logo (companies)
+ชื่อบริษัท = name (companies)
+ที่อยู่บริษัท = address (companies)
+เบอร์โทร = phone (companies)
+คำนำหน้า = prefix (patients)
+ชื่อ = firstName (patients)
+นามสกุล = lastName (patients)
+อายุ = age (patients)
+เพศ = gender (patients)
+วันเกิด = birthdate (patients)
+เบอร์โทร = phone (patients)
+เลขบัตรประชาชน = idCard (patients)
+ที่อยู่ = address (patients)น้ำหนัก = weight (visits)
+ส่วนสูง = height (visits)
+ความดันโลหิต = bloodPressure (visits)
+ชีพจร = pulse (visits)
+ประวัติการแพ้ยา = ทำช่องไว้
+โรคประจำตัว = medicalHistory
+วันที่มารับบริการ = visitDate (visits)
+ค่าบริการ = totalAmount (orders)
+การรับผลการตรวจ = ทำช่องไว้
+

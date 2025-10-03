@@ -1,14 +1,35 @@
 {
-  "name": "vite_react_shadcn_ts",
+  "name": "labflow-clinic",
   "private": true,
-  "version": "0.0.0",
-  "type": "module",
+  "version": "1.0.0",
+  "description": "ระบบจัดการคลินิกและห้องปฏิบัติการ LabFlow Clinic",
+  "author": "LabFlow Team",
+  "main": "electron/main.js",
+  "homepage": "./",
   "scripts": {
     "dev": "vite",
     "build": "vite build",
     "build:dev": "vite build --mode development",
+    "build:production": "vite build --config vite.config.production.ts",
+    "build:netlify": "npm run build:production",
     "lint": "eslint .",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "electron": "electron .",
+    "electron:dev": "concurrently \"npm run dev\" \"cd backend && npm start\"",
+    "electron:start": "wait-on http://localhost:8080 http://localhost:3001/api/health && electron .",
+    "electron:full": "concurrently \"npm run dev\" \"cd backend && npm start\" \"wait-on http://localhost:8080 && wait-on http://localhost:3001 && electron .\"",
+    "electron:clear-cache": "electron . --clear-cache",
+    "build:electron": "npm run build && electron-builder",
+    "build:win": "node build-manual.js",
+    "build:portable": "node create-portable.js",
+    "build:installer": "node create-installer.js",
+    "build:installer-simple": "node build-installer-simple.js",
+    "build:simple-installer": "node build-simple-installer.js",
+    "build:installer-launcher": "node build-installer-with-launcher.js",
+    "build:final-installer": "node build-final-installer.js",
+    "build:all": "npm run build && electron-builder --win --x64",
+    "dist": "npm run build && electron-builder --publish=never",
+    "test:connection": "node test-connection.js"
   },
   "dependencies": {
     "@hookform/resolvers": "^3.10.0",
@@ -40,12 +61,14 @@
     "@radix-ui/react-toggle-group": "^1.1.10",
     "@radix-ui/react-tooltip": "^1.2.7",
     "@tanstack/react-query": "^5.83.0",
+    "@types/jsbarcode": "^3.11.4",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
     "cmdk": "^1.1.1",
     "date-fns": "^3.6.0",
     "embla-carousel-react": "^8.6.0",
     "input-otp": "^1.4.2",
+    "jsbarcode": "^3.12.1",
     "lucide-react": "^0.462.0",
     "next-themes": "^0.3.0",
     "react": "^18.3.1",
@@ -69,6 +92,10 @@
     "@types/react-dom": "^18.3.7",
     "@vitejs/plugin-react-swc": "^3.11.0",
     "autoprefixer": "^10.4.21",
+    "concurrently": "^8.2.2",
+    "electron": "^28.0.0",
+    "electron-builder": "^24.13.3",
+    "electron-reload": "^2.0.0-alpha.1",
     "eslint": "^9.32.0",
     "eslint-plugin-react-hooks": "^5.2.0",
     "eslint-plugin-react-refresh": "^0.4.20",
@@ -76,8 +103,82 @@
     "lovable-tagger": "^1.1.9",
     "postcss": "^8.5.6",
     "tailwindcss": "^3.4.17",
+    "terser": "^5.44.0",
     "typescript": "^5.8.3",
     "typescript-eslint": "^8.38.0",
-    "vite": "^5.4.19"
+    "vite": "^5.4.19",
+    "wait-on": "^7.2.0"
+  },
+  "build": {
+    "appId": "com.labflow.clinic",
+    "productName": "LabFlow Clinic",
+    "directories": {
+      "output": "dist-electron"
+    },
+    "files": [
+      "dist/**/*",
+      "electron/**/*",
+      "backend/**/*",
+      "public/iconlabflow.ico",
+      "node_modules/**/*",
+      "!node_modules/*/{CHANGELOG.md,README.md,README,readme.md,readme}",
+      "!node_modules/*/{test,__tests__,tests,powered-test,example,examples}",
+      "!node_modules/*.d.ts",
+      "!node_modules/.bin",
+      "!**/*.{iml,o,hprof,orig,pyc,pyo,rbc,swp,csproj,sln,xproj}",
+      "!.editorconfig",
+      "!**/._*",
+      "!**/{.DS_Store,.git,.hg,.svn,CVS,RCS,SCCS,.gitignore,.gitattributes}",
+      "!**/{__pycache__,thumbs.db,.flowconfig,.idea,.vs,.nyc_output}",
+      "!**/{appveyor.yml,.travis.yml,circle.yml}",
+      "!**/{npm-debug.log,yarn.lock,.yarn-integrity,.yarn-metadata.json}"
+    ],
+    "win": {
+      "target": [
+        {
+          "target": "nsis",
+          "arch": [
+            "x64"
+          ]
+        },
+        {
+          "target": "portable",
+          "arch": [
+            "x64"
+          ]
+        }
+      ],
+      "icon": "public/iconlabflow.ico",
+      "requestedExecutionLevel": "asInvoker",
+      "sign": null,
+      "verifyUpdateCodeSignature": false
+    },
+    "portable": {
+      "artifactName": "LabFlow-Clinic-${version}-portable.exe",
+      "requestExecutionLevel": "user",
+      "unpackDirName": "LabFlowClinic"
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true,
+      "shortcutName": "LabFlow Clinic",
+      "allowElevation": true,
+      "installerIcon": "public/iconlabflow.ico",
+      "uninstallerIcon": "public/iconlabflow.ico",
+      "installerHeaderIcon": "public/iconlabflow.ico",
+      "deleteAppDataOnUninstall": false,
+      "runAfterFinish": true,
+      "artifactName": "LabFlow-Clinic-Setup-${version}.exe",
+      "displayLanguageSelector": false,
+      "language": "1054"
+    },
+    "compression": "maximum",
+    "forceCodeSigning": false,
+    "buildVersion": "1.0.0",
+    "asarUnpack": [
+      "backend/**/*"
+    ]
   }
 }

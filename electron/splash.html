@@ -1,0 +1,314 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>LabFlow Clinic - Loading</title>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Sarabun:wght@300;400;600;700&display=swap');
+        
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Sarabun', Arial, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            overflow: hidden;
+            position: relative;
+        }
+
+        .splash-container {
+            text-align: center;
+            color: white;
+            z-index: 10;
+            position: relative;
+        }
+
+        .logo {
+            width: 80px;
+            height: 80px;
+            background: rgba(255, 255, 255, 0.2);
+            border-radius: 50%;
+            margin: 0 auto 20px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            backdrop-filter: blur(10px);
+            border: 2px solid rgba(255, 255, 255, 0.3);
+            animation: pulse 2s infinite;
+        }
+
+        .logo-icon {
+            font-size: 36px;
+            font-weight: bold;
+            color: white;
+        }
+
+        .app-name {
+            font-size: 28px;
+            font-weight: 700;
+            margin-bottom: 8px;
+            text-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
+        }
+
+        .app-subtitle {
+            font-size: 16px;
+            font-weight: 300;
+            margin-bottom: 30px;
+            opacity: 0.9;
+        }
+
+        .loading-container {
+            position: relative;
+            width: 200px;
+            margin: 0 auto;
+        }
+
+        .loading-bar {
+            width: 100%;
+            height: 4px;
+            background: rgba(255, 255, 255, 0.2);
+            border-radius: 2px;
+            overflow: hidden;
+            margin-bottom: 15px;
+        }
+
+        .loading-progress {
+            height: 100%;
+            background: linear-gradient(90deg, #fff, #f0f0f0);
+            border-radius: 2px;
+            animation: loading 2s ease-in-out infinite;
+        }
+
+        .loading-text {
+            font-size: 14px;
+            opacity: 0.8;
+            animation: fadeInOut 1.5s ease-in-out infinite;
+        }
+
+        .version {
+            position: absolute;
+            bottom: 20px;
+            right: 20px;
+            font-size: 12px;
+            opacity: 0.7;
+            color: white;
+        }
+
+        .particles {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            overflow: hidden;
+            z-index: 1;
+        }
+
+        .particle {
+            position: absolute;
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 50%;
+            animation: float 6s ease-in-out infinite;
+        }
+
+        .particle:nth-child(1) {
+            width: 6px;
+            height: 6px;
+            left: 10%;
+            animation-delay: 0s;
+        }
+
+        .particle:nth-child(2) {
+            width: 8px;
+            height: 8px;
+            left: 20%;
+            animation-delay: 1s;
+        }
+
+        .particle:nth-child(3) {
+            width: 4px;
+            height: 4px;
+            left: 30%;
+            animation-delay: 2s;
+        }
+
+        .particle:nth-child(4) {
+            width: 10px;
+            height: 10px;
+            left: 40%;
+            animation-delay: 0.5s;
+        }
+
+        .particle:nth-child(5) {
+            width: 6px;
+            height: 6px;
+            left: 50%;
+            animation-delay: 1.5s;
+        }
+
+        .particle:nth-child(6) {
+            width: 8px;
+            height: 8px;
+            left: 60%;
+            animation-delay: 2.5s;
+        }
+
+        .particle:nth-child(7) {
+            width: 4px;
+            height: 4px;
+            left: 70%;
+            animation-delay: 0.8s;
+        }
+
+        .particle:nth-child(8) {
+            width: 6px;
+            height: 6px;
+            left: 80%;
+            animation-delay: 1.8s;
+        }
+
+        .particle:nth-child(9) {
+            width: 10px;
+            height: 10px;
+            left: 90%;
+            animation-delay: 0.3s;
+        }
+
+        @keyframes pulse {
+            0%, 100% {
+                transform: scale(1);
+                box-shadow: 0 0 20px rgba(255, 255, 255, 0.3);
+            }
+            50% {
+                transform: scale(1.05);
+                box-shadow: 0 0 30px rgba(255, 255, 255, 0.5);
+            }
+        }
+
+        @keyframes loading {
+            0% {
+                width: 0%;
+            }
+            50% {
+                width: 70%;
+            }
+            100% {
+                width: 100%;
+            }
+        }
+
+        @keyframes fadeInOut {
+            0%, 100% {
+                opacity: 0.8;
+            }
+            50% {
+                opacity: 1;
+            }
+        }
+
+        @keyframes float {
+            0%, 100% {
+                transform: translateY(100vh) rotate(0deg);
+                opacity: 0;
+            }
+            10%, 90% {
+                opacity: 0.3;
+            }
+            50% {
+                opacity: 0.6;
+                transform: translateY(-10vh) rotate(180deg);
+            }
+        }
+
+        .fade-in {
+            animation: fadeIn 0.8s ease-out;
+        }
+
+        @keyframes fadeIn {
+            from {
+                opacity: 0;
+                transform: translateY(20px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="particles">
+        <div class="particle"></div>
+        <div class="particle"></div>
+        <div class="particle"></div>
+        <div class="particle"></div>
+        <div class="particle"></div>
+        <div class="particle"></div>
+        <div class="particle"></div>
+        <div class="particle"></div>
+        <div class="particle"></div>
+    </div>
+
+    <div class="splash-container fade-in">
+        <div class="logo">
+            <div class="logo-icon">⚕</div>
+        </div>
+        <h1 class="app-name">LabFlow Clinic</h1>
+        <p class="app-subtitle">ระบบจัดการคลินิกและห้องปฏิบัติการ</p>
+        
+        <div class="loading-container">
+            <div class="loading-bar">
+                <div class="loading-progress"></div>
+            </div>
+            <div class="loading-text">กำลังโหลด...</div>
+        </div>
+    </div>
+
+    <div class="version">v1.0.0</div>
+
+    <script>
+        // Simulate loading progress
+        let progress = 0;
+        const loadingText = document.querySelector('.loading-text');
+        const loadingProgress = document.querySelector('.loading-progress');
+        
+        const messages = [
+            'กำลังโหลด...',
+            'เตรียมระบบ...',
+            'โหลดข้อมูล...',
+            'เกือบเสร็จแล้ว...',
+            'พร้อมใช้งาน!'
+        ];
+
+        let messageIndex = 0;
+        
+        const updateMessage = () => {
+            if (messageIndex < messages.length) {
+                loadingText.textContent = messages[messageIndex];
+                messageIndex++;
+            }
+        };
+
+        // Change loading message every 600ms
+        const messageInterval = setInterval(updateMessage, 600);
+
+        // Clean up after 3 seconds
+        setTimeout(() => {
+            clearInterval(messageInterval);
+        }, 3000);
+
+        // Add some interactivity
+        document.addEventListener('DOMContentLoaded', () => {
+            console.log('LabFlow Clinic Splash Screen Loaded');
+        });
+    </script>
+</body>
+</html>

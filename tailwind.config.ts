@@ -18,6 +18,22 @@ export default {
 			}
 		},
 		extend: {
+			fontFamily: {
+				'sans': ['Itim', 'THSarabunNew', 'TH Sarabun New', 'Sarabun', 'Arial', 'sans-serif'],
+				'itim': ['Itim', 'sans-serif'],
+			},
+			fontSize: {
+				'xs': ['16px', '1.4'],
+				'sm': ['18px', '1.5'],
+				'base': ['20px', '1.6'],
+				'lg': ['22px', '1.6'],
+				'xl': ['24px', '1.7'],
+				'2xl': ['28px', '1.7'],
+				'3xl': ['34px', '1.8'],
+				'4xl': ['40px', '1.8'],
+				'5xl': ['52px', '1.9'],
+				'6xl': ['64px', '1.9'],
+			},
 			colors: {
 				border: 'hsl(var(--border))',
 				input: 'hsl(var(--input))',
