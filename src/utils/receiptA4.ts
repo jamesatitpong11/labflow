@@ -290,7 +290,7 @@ export function generateA4ReceiptHTML(data: A4ReceiptData): string {
             </div>
             <div class="info-row">
               <span class="info-label">เลขบัตรประชาชน:</span>
-              <span class="info-value">${data.patientIdCard}</span>
+              <span class="info-value">${data.patientIdCard && data.patientIdCard.startsWith('NO_ID_') ? '-' : (data.patientIdCard || '-')}</span>
             </div>
             
             <div class="info-row">
@@ -428,7 +428,7 @@ export async function printA4Receipt(data: A4ReceiptData, printerName?: string):
         console.log('Direct printing failed, reason:', result?.message);
         
         // If direct printing failed and system suggests dialog, try with dialog
-        if (result?.suggestDialog && (window.electronAPI as any).printDocumentWithDialog) {
+        if ((result as any)?.suggestDialog && (window.electronAPI as any).printDocumentWithDialog) {
           console.log('Trying with print dialog...');
           const dialogResult = await (window.electronAPI as any).printDocumentWithDialog(printOptions);
           

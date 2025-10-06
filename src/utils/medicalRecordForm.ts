@@ -401,7 +401,7 @@ export function generateMedicalRecordFormHTML(data: MedicalRecordFormData): stri
           <div class="form-row">
             <div class="form-field">
             <span class="form-label">เลขบัตรประชาชน</span>
-              <span class="form-input wide">${data.patientIdCard}</span>
+              <span class="form-input wide">${data.patientIdCard && data.patientIdCard.startsWith('NO_ID_') ? '-' : (data.patientIdCard || '-')}</span>
             </div>
           </div>
           <div class="form-row">
