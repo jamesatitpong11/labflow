@@ -52,8 +52,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         apiUrl = 'http://localhost:3001/api/auth/login';
         console.log('AuthContext: Using Electron API URL:', apiUrl);
       } else {
-        // Use environment variable or relative URL for web
-        const baseUrl = import.meta.env.VITE_API_URL;
+        // Use environment variable or fallback URL for web
+        const baseUrl = import.meta.env.VITE_API_URL || 'https://labflow-clinic-backend-skzx.onrender.com';
         if (baseUrl && baseUrl.startsWith('http')) {
           apiUrl = `${baseUrl}/api/auth/login`;
         } else {

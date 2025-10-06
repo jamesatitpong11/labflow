@@ -16,7 +16,7 @@ const getApiBaseUrl = () => {
   }
   
   // For web deployment, use environment variable or fallback
-  const apiUrl = import.meta.env.VITE_API_URL || '/api';
+  const apiUrl = import.meta.env.VITE_API_URL || 'https://labflow-clinic-backend-skzx.onrender.com';
   
   // If it's a full URL, append /api, otherwise use as is
   if (apiUrl.startsWith('http')) {
