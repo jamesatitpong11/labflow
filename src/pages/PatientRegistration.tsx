@@ -7,6 +7,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Checkbox } from "@/components/ui/checkbox";
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { useToast } from "@/hooks/use-toast";
 import { showSuccessToast, showErrorToast, showWarningToast, showInfoToast } from "@/lib/toast-helpers";
 import { apiService, PatientData } from "@/services/api";
@@ -31,6 +32,10 @@ export default function PatientRegistration() {
   const [searchTerm, setSearchTerm] = useState("");
   const [isUpdateMode, setIsUpdateMode] = useState(false);
   const [useManualAge, setUseManualAge] = useState(false);
+  const [showDeleteDialog, setShowDeleteDialog] = useState(false);
+  const [deletePatientId, setDeletePatientId] = useState<string>("");
+  const [deleteCredentials, setDeleteCredentials] = useState({ username: "", password: "" });
+  const [isDeleting, setIsDeleting] = useState(false);
   const [formData, setFormData] = useState<PatientData>({
     _id: "",
     ln: "",
@@ -390,22 +395,95 @@ export default function PatientRegistration() {
     });
   };
 
-  const handleDelete = async (patientId: string) => {
-    try {
-      await apiService.deletePatient(patientId);
-      setRegistrationHistory(prev => prev.filter(p => p._id !== patientId));
+  const handleDelete = (patientId: string) => {
+    setDeletePatientId(patientId);
+    setShowDeleteDialog(true);
+    setDeleteCredentials({ username: "", password: "" });
+  };
 
-      showSuccessToast({
-        title: "ลบข้อมูลสำเร็จ",
-        description: "ข้อมูลคนไข้ถูกลบแล้ว",
+  const confirmDelete = async () => {
+    // ตรวจสอบ username และ password
+    if (!deleteCredentials.username || !deleteCredentials.password) {
+      showErrorToast({
+        title: "ข้อมูลไม่ครบถ้วน",
+        description: "กรุณากรอก Username และ Password",
       });
+      return;
+    }
+
+    setIsDeleting(true);
+    try {
+      // ใช้ API login เพื่อตรวจสอบ username และ password
+      console.log('=== DELETE AUTHENTICATION DEBUG ===');
+      console.log('Input username:', deleteCredentials.username);
+      console.log('Input password:', deleteCredentials.password);
+      
+      const loginResponse = await fetch('http://localhost:3001/api/auth/login', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          username: deleteCredentials.username,
+          password: deleteCredentials.password
+        }),
+      });
+
+      const loginData = await loginResponse.json();
+      console.log('Login response:', loginData);
+
+      if (!loginResponse.ok) {
+        showErrorToast({
+          title: "การยืนยันตัวตนล้มเหลว",
+          description: loginData.error || "ชื่อผู้ใช้หรือรหัสผ่านไม่ถูกต้อง กรุณาตรวจสอบและลองใหม่อีกครั้ง",
+        });
+        return;
+      }
+
+      const authenticatedUser = loginData.user;
+      console.log('Authenticated user:', authenticatedUser);
+
+      // แสดงข้อความยืนยันการเข้าสู่ระบบสำเร็จ
+      const displayName = authenticatedUser.fullName || 
+                         authenticatedUser.firstName || 
+                         authenticatedUser.username;
+      
+      showInfoToast({
+        title: "ยืนยันตัวตนสำเร็จ",
+        description: `ยินดีต้อนรับ ${displayName}`,
+      });
+
+      // ดำเนินการลบข้อมูลคนไข้
+      await apiService.deletePatient(deletePatientId);
+      setRegistrationHistory(prev => prev.filter(p => p._id !== deletePatientId));
+
+      const operatorName = authenticatedUser.fullName || 
+                          authenticatedUser.firstName || 
+                          authenticatedUser.username;
+      
+      showSuccessToast({
+        title: "ลบข้อมูลคนไข้สำเร็จ",
+        description: `ข้อมูลถูกลบเรียบร้อยแล้วโดย ${operatorName}`,
+      });
+      
+      setShowDeleteDialog(false);
+      setDeletePatientId("");
+      setDeleteCredentials({ username: "", password: "" });
     } catch (error) {
-      console.error('Error deleting patient:', error);
+      console.error('Error during delete process:', error);
       showErrorToast({
         title: "เกิดข้อผิดพลาด",
         description: error instanceof Error ? error.message : "ไม่สามารถลบข้อมูลได้",
       });
+    } finally {
+      setIsDeleting(false);
     }
+  };
+
+  const cancelDelete = () => {
+    setShowDeleteDialog(false);
+    setDeletePatientId("");
+    setDeleteCredentials({ username: "", password: "" });
   };
 
   const handleNoIdCard = async () => {
@@ -454,26 +532,26 @@ export default function PatientRegistration() {
   );
 
   return (
-    <div className="flex gap-6 h-[calc(100vh-120px)]">
+    <div className="flex flex-col lg:flex-row gap-4 sm:gap-6 h-auto lg:h-[calc(100vh-120px)]">
       {/* Main Form - 3/4 width */}
-      <div className="flex-1 space-y-6">
+      <div className="flex-1 space-y-4 sm:space-y-6">
         {/* Header with Smart Card Reader */}
         <div className="relative overflow-hidden">
           <Card className="shadow-card-custom border border-primary/20 bg-gradient-to-br from-primary/5 via-background to-primary/3">
-            <CardContent className="p-8">
-              <div className="flex items-center justify-between relative z-10">
-                <div className="flex items-center gap-6">
+            <CardContent className="p-4 sm:p-6 lg:p-8">
+              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 relative z-10">
+                <div className="flex items-center gap-4 sm:gap-6">
                   <div className="relative">
                     <div className="absolute inset-0 bg-primary/30 rounded-full blur-xl"></div>
-                    <div className="relative p-4 rounded-full bg-gradient-to-br from-primary/20 to-primary/30 border border-primary/40">
-                      <UserPlus className="h-10 w-10 text-primary" />
+                    <div className="relative p-3 sm:p-4 rounded-full bg-gradient-to-br from-primary/20 to-primary/30 border border-primary/40">
+                      <UserPlus className="h-8 w-8 sm:h-10 sm:w-10 text-primary" />
                     </div>
                   </div>
                   <div className="space-y-2">
-                    <h1 className="text-4xl font-bold text-foreground tracking-tight">
+                    <h1 className="text-2xl sm:text-3xl lg:text-4xl font-bold text-foreground tracking-tight">
                       ลงทะเบียนคนไข้
                     </h1>
-                    <p className="text-lg text-muted-foreground font-medium">
+                    <p className="text-sm sm:text-base lg:text-lg text-muted-foreground font-medium">
                       เพิ่มข้อมูลคนไข้ใหม่เข้าสู่ระบบ
                     </p>
                     <div className="flex items-center gap-2 text-sm text-primary/80">
@@ -860,6 +938,68 @@ export default function PatientRegistration() {
           </CardContent>
         </Card>
       </div>
+
+      {/* Delete Confirmation Dialog */}
+      <Dialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle className="text-destructive flex items-center gap-2">
+              <Trash2 className="h-5 w-5" />
+              ยืนยันการลบข้อมูล
+            </DialogTitle>
+            <DialogDescription>
+              เพื่อความปลอดภัย กรุณายืนยันตัวตนด้วยบัญชีผู้ใช้ที่เข้าใช้งานระบบก่อนดำเนินการลบข้อมูลคนไข้
+            </DialogDescription>
+          </DialogHeader>
+          
+          <div className="space-y-4 py-4">
+            <div className="space-y-2">
+              <Label htmlFor="delete-username" className="text-sm font-medium">
+                Username
+              </Label>
+              <Input
+                id="delete-username"
+                type="text"
+                placeholder="ชื่อผู้ใช้ที่เข้าสู่ระบบ"
+                value={deleteCredentials.username}
+                onChange={(e) => setDeleteCredentials(prev => ({ ...prev, username: e.target.value }))}
+                className="h-10"
+              />
+            </div>
+            
+            <div className="space-y-2">
+              <Label htmlFor="delete-password" className="text-sm font-medium">
+                Password
+              </Label>
+              <Input
+                id="delete-password"
+                type="password"
+                placeholder="รหัสผ่านของผู้ใช้ที่เข้าสู่ระบบ"
+                value={deleteCredentials.password}
+                onChange={(e) => setDeleteCredentials(prev => ({ ...prev, password: e.target.value }))}
+                className="h-10"
+              />
+            </div>
+          </div>
+          
+          <DialogFooter className="gap-2">
+            <Button
+              variant="outline"
+              onClick={cancelDelete}
+              disabled={isDeleting}
+            >
+              ยกเลิก
+            </Button>
+            <Button
+              variant="destructive"
+              onClick={confirmDelete}
+              disabled={isDeleting}
+            >
+              {isDeleting ? "กำลังดำเนินการ..." : "ยืนยันและลบข้อมูล"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

@@ -2,38 +2,21 @@
 // Check if running in Electron environment - make this dynamic
 const isElectron = () => typeof window !== 'undefined' && window.electronAPI;
 
-// Add immediate debug logging with delay to ensure preload is ready
-setTimeout(() => {
-  console.log('=== API.TS DELAYED CHECK ===');
-  console.log('api.ts delayed - isElectron():', isElectron());
-  console.log('api.ts delayed - window.electronAPI:', window.electronAPI);
-  console.log('api.ts delayed - window.ELECTRON_API_BASE_URL:', (window as any).ELECTRON_API_BASE_URL);
-  console.log('api.ts delayed - window.electron_api_base_url:', (window as any).electron_api_base_url);
-}, 1000);
-
-console.log('=== API.TS IMMEDIATE CHECK ===');
-console.log('api.ts initialization - isElectron():', isElectron());
-console.log('api.ts initialization - window.electronAPI:', window.electronAPI);
-console.log('api.ts initialization - window.ELECTRON_API_BASE_URL:', (window as any).ELECTRON_API_BASE_URL);
-console.log('api.ts initialization - window.electron_api_base_url:', (window as any).electron_api_base_url);
+// Production build - debug logs removed
 
 // Get API base URL - use environment variables or defaults
 const getApiBaseUrl = () => {
   const electronEnv = isElectron();
-  console.log('api.ts - isElectron():', electronEnv);
-  console.log('api.ts - VITE_API_URL:', import.meta.env.VITE_API_URL);
-  console.log('api.ts - VITE_APP_ENV:', import.meta.env.VITE_APP_ENV);
   
   if (electronEnv) {
-    // Use correct backend port 3002 for Electron
-    const electronBaseUrl = 'http://localhost:3002';
+    // Use correct backend port 3001 for Electron
+    const electronBaseUrl = 'http://localhost:3001';
     console.log('Electron API Base URL:', electronBaseUrl);
     return `${electronBaseUrl}/api`;
   }
   
   // For web deployment, use environment variable or fallback
   const apiUrl = import.meta.env.VITE_API_URL || '/api';
-  console.log('Web API Base URL:', apiUrl);
   
   // If it's a full URL, append /api, otherwise use as is
   if (apiUrl.startsWith('http')) {
@@ -46,7 +29,6 @@ const getApiBaseUrl = () => {
 const getApiUrl = (endpoint: string) => {
   const baseUrl = getApiBaseUrl();
   const fullUrl = `${baseUrl}${endpoint}`;
-  console.log('API URL:', fullUrl);
   return fullUrl;
 };
 
@@ -569,6 +551,9 @@ class ApiService {
   async getRecentVisits(limit: number = 10): Promise<Array<{
     visitId: string;
     visitNumber: string;
+    patientTitle: string;
+    patientFirstName: string;
+    patientLastName: string;
     patientName: string;
     tests: string[];
     status: string;
@@ -577,6 +562,9 @@ class ApiService {
     return this.request<Array<{
       visitId: string;
       visitNumber: string;
+      patientTitle: string;
+      patientFirstName: string;
+      patientLastName: string;
       patientName: string;
       tests: string[];
       status: string;
@@ -594,6 +582,38 @@ class ApiService {
       reportPrinter: 'online' | 'offline' | 'warning';
       barcodePrinter: 'online' | 'offline' | 'warning';
     }>('/dashboard/system-status');
+  }
+
+  async getMonthlyRevenue(months: number = 6): Promise<Array<{
+    month: string;
+    revenue: number;
+    monthName: string;
+  }>> {
+    return this.request<Array<{
+      month: string;
+      revenue: number;
+      monthName: string;
+    }>>(`/dashboard/monthly-revenue?months=${months}`);
+  }
+
+  async getRevenueBreakdown(date: string): Promise<{
+    cash: number;
+    creditCard: number;
+    bankTransfer: number;
+    insurance: number;
+    other: number;
+    total: number;
+    cancelled: number;
+  }> {
+    return this.request<{
+      cash: number;
+      creditCard: number;
+      bankTransfer: number;
+      insurance: number;
+      other: number;
+      total: number;
+      cancelled: number;
+    }>(`/dashboard/revenue-breakdown?date=${date}`);
   }
 
   // Reports API methods

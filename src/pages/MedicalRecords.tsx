@@ -24,11 +24,10 @@ import {
   FileText as FileTextIcon,
   Paperclip
 } from "lucide-react";
-import { apiService, VisitData, PatientData, CompanySettingsData } from "@/services/api";
+import { apiService, VisitData } from "@/services/api";
 import { useToast } from "@/hooks/use-toast";
-import { showSuccessToast, showErrorToast, showWarningToast } from "@/lib/toast-helpers";
+import { showErrorToast } from "@/lib/toast-helpers";
 import { FileViewer } from "@/components/FileViewer";
-import { printMedicalRecordForm, MedicalRecordFormData } from "@/utils/medicalRecordForm";
 
 interface MedicalRecord {
   id: string;
@@ -84,30 +83,8 @@ export default function MedicalRecords() {
   const [filteredRecords, setFilteredRecords] = useState<MedicalRecord[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [expandedRecord, setExpandedRecord] = useState<string | null>(null);
-  const [companySettings, setCompanySettings] = useState<CompanySettingsData | null>(null);
-  const [selectedReceiptPrinter, setSelectedReceiptPrinter] = useState<string>("");
   const { toast } = useToast();
 
-  // Load company settings
-  const loadCompanySettings = async () => {
-    try {
-      const settings = await apiService.getCompanySettings();
-      setCompanySettings(settings);
-    } catch (error) {
-      console.error('Error loading company settings:', error);
-    }
-  };
-
-  // Load printer settings from localStorage
-  const loadPrinterSettings = () => {
-    const savedSettings = localStorage.getItem('printerSettings');
-    if (savedSettings) {
-      const settings = JSON.parse(savedSettings);
-      if (settings.receipt) {
-        setSelectedReceiptPrinter(settings.receipt);
-      }
-    }
-  };
 
   // Load medical records from API
   const loadMedicalRecords = async () => {
@@ -223,8 +200,6 @@ export default function MedicalRecords() {
 
   useEffect(() => {
     loadMedicalRecords();
-    loadCompanySettings();
-    loadPrinterSettings();
   }, []);
 
   const handleSearch = (value: string) => {
@@ -243,60 +218,6 @@ export default function MedicalRecords() {
     setFilteredRecords(filtered);
   };
 
-  // Print medical record form function
-  const printMedicalRecordFormForPatient = async (record: MedicalRecord) => {
-    if (!companySettings) {
-      showWarningToast({
-        title: "ไม่พบข้อมูลบริษัท",
-        description: "กรุณาตั้งค่าข้อมูลบริษัทก่อนพิมพ์ใบเวชระเบียน",
-      });
-      return;
-    }
-
-    try {
-      // Get the most recent visit for this patient
-      const recentVisit = record.visits[0]; // Assuming visits are sorted by date
-      
-      const formData: MedicalRecordFormData = {
-        companyInfo: companySettings,
-        patientln: record.patientName,
-        patientTitle: "",
-        patientFirstName: record.patientName.split(' ')[0] || "",
-        patientLastName: record.patientName.split(' ').slice(1).join(' ') || "",
-        patientAge: 0,
-        patientGender: "",
-        patientIdCard: record.idCardNumber,
-        patientPhone: record.phone,
-        patientAddress: record.address,
-        visitNumber: recentVisit?.visitNumber || "",
-        visitDate: record.lastVisit,
-        weight: undefined,
-        height: undefined,
-        bloodPressure: undefined,
-        temperature: undefined,
-        pulse: undefined,
-        serviceCost: recentVisit?.orders?.reduce((total, order) => total + (order.price || 0), 0),
-        lineId: "",
-        email: "",
-        tel: record.phone,
-        receiveResults: false
-      };
-
-      console.log('Printing medical record form to printer:', selectedReceiptPrinter);
-      await printMedicalRecordForm(formData, selectedReceiptPrinter);
-      
-      showSuccessToast({
-        title: "พิมพ์ใบเวชระเบียนสำเร็จ",
-        description: `ส่งพิมพ์ใบเวชระเบียนของ ${record.patientName} เรียบร้อยแล้ว`,
-      });
-    } catch (error) {
-      console.error('Medical record form print error:', error);
-      showErrorToast({
-        title: "การพิมพ์ใบเวชระเบียนล้มเหลว",
-        description: `ไม่สามารถพิมพ์ใบเวชระเบียนได้: ${error.message}`,
-      });
-    }
-  };
 
   const getStatusBadge = (status: string) => {
     return status === "active" 
@@ -363,13 +284,13 @@ export default function MedicalRecords() {
   };
 
   return (
-    <div className="container mx-auto p-6 space-y-6">
+    <div className="container mx-auto p-4 sm:p-6 space-y-4 sm:space-y-6">
       {/* Header */}
       <Card className="shadow-card-custom">
         <CardHeader className="bg-gradient-to-r from-primary/10 to-primary/5 border-b border-primary/20">
-          <CardTitle className="text-2xl font-bold text-foreground flex items-center gap-3">
+          <CardTitle className="text-xl sm:text-2xl font-bold text-foreground flex items-center gap-3">
             <div className="p-2 rounded-lg bg-primary/20">
-              <FileText className="h-6 w-6 text-primary" />
+              <FileText className="h-5 w-5 sm:h-6 sm:w-6 text-primary" />
             </div>
             เวชระเบียน
           </CardTitle>
@@ -494,14 +415,6 @@ export default function MedicalRecords() {
                     >
                       {expandedRecord === record.id ? <ChevronUp className="h-4 w-4 mr-2" /> : <ChevronDown className="h-4 w-4 mr-2" />}
                       {expandedRecord === record.id ? 'ซ่อนประวัติ' : 'ดูประวัติการมาตรวจ'}
-                    </Button>
-                    <Button 
-                      onClick={() => printMedicalRecordFormForPatient(record)}
-                      className="bg-gradient-to-r from-primary to-primary/80 hover:from-primary/90 hover:to-primary/70 text-primary-foreground shadow-lg hover:shadow-xl transition-all duration-300"
-                      size="sm"
-                    >
-                      <FileText className="h-4 w-4 mr-2" />
-                      พิมพ์ใบเวชระเบียน
                     </Button>
                   </div>
 

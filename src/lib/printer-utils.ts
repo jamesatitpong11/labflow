@@ -619,7 +619,7 @@ export const printSticker = async (content: string): Promise<{ success: boolean;
       
       const result = await (window.electronAPI as any).printSticker({
         printerName,
-        content: content
+        htmlContent: content
       });
       console.log('Electron printSticker result:', result);
       return result;

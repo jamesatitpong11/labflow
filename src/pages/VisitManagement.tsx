@@ -754,26 +754,31 @@ export default function VisitManagement() {
       return;
     }
 
-    const printContent = `
-      <!DOCTYPE html>
-      <html>
-        <head>
-          <meta charset="utf-8">
-          <title>สติ๊กเกอร์ - ${visitData.visitNumber}</title>
-          <link href="https://fonts.googleapis.com/css2?family=Itim&display=swap" rel="stylesheet">
-          <script src="https://cdn.jsdelivr.net/npm/jsbarcode@3.11.5/dist/JsBarcode.all.min.js"></script>
-        <style>
-          @page {
-            size: 105mm 25mm;
-            margin: 0mm;
-          }
-          @media print {
-            * {
-              -webkit-print-color-adjust: exact !important;
-              color-adjust: exact !important;
-              print-color-adjust: exact !important;
-            }
-          }
+    console.log('Creating sticker content for:', {
+      visitNumber: visitData.visitNumber,
+      patientName: `${selectedPatient.title}${selectedPatient.firstName} ${selectedPatient.lastName}`,
+      age: selectedPatient.age
+    });
+
+    const printContent = `<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>สติ๊กเกอร์ - ${visitData.visitNumber}</title>
+  <link href="https://fonts.googleapis.com/css2?family=Itim&display=swap" rel="stylesheet">
+  <script src="https://cdn.jsdelivr.net/npm/jsbarcode@3.11.5/dist/JsBarcode.all.min.js"></script>
+  <style>
+    @page {
+      size: 105mm 25mm;
+      margin: 0mm;
+    }
+    @media print {
+      * {
+        -webkit-print-color-adjust: exact !important;
+        color-adjust: exact !important;
+        print-color-adjust: exact !important;
+      }
+    }
           body { 
             font-family: 'Itim', 'Arial', sans-serif; 
             margin: 0;
@@ -977,8 +982,12 @@ export default function VisitManagement() {
       </html>
     `;
 
+    console.log('Final print content length:', printContent.length);
+    console.log('Calling handlePrintStickerUtil...');
+    
     // Use the new printer utility hook
-    await handlePrintStickerUtil(printContent);
+    const result = await handlePrintStickerUtil(printContent);
+    console.log('Print result:', result);
   };
 
   // Handle patient search with debouncing
@@ -1008,18 +1017,18 @@ export default function VisitManagement() {
   const recentVisits = filteredVisits.slice(0, 20); // Show filtered visits, max 20
 
   return (
-    <div className="flex flex-col lg:flex-row gap-6 h-auto lg:h-[calc(100vh-120px)]">
-      {/* Patient Search Sidebar - Full width on mobile, 1/4 width on desktop */}
-      <div className="w-full lg:w-80 space-y-4">
+    <div className="flex flex-col lg:flex-row gap-4 sm:gap-6 h-auto lg:h-[calc(100vh-120px)]">
+      {/* Patient Search Sidebar - Full width on mobile, smaller width on desktop */}
+      <div className="w-full lg:w-72 space-y-3 sm:space-y-4">
         {/* Printer Connection Test removed - use Settings page instead */}
         
-        <Card className="shadow-card-custom">
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
+        <Card className="shadow-card-custom border border-border/50 bg-card">
+          <CardHeader className="bg-gradient-to-r from-primary/5 to-primary/10 dark:from-primary/10 dark:to-primary/20 border-b border-border/20">
+            <CardTitle className="flex items-center gap-2 text-foreground">
               <Search className="h-5 w-5 text-primary" />
               ค้นหาคนไข้
             </CardTitle>
-            <CardDescription>
+            <CardDescription className="text-muted-foreground">
               เลือกคนไข้เพื่อเปิด visit
             </CardDescription>
 
@@ -1030,11 +1039,11 @@ export default function VisitManagement() {
                 placeholder="ค้นหาชื่อ, เลขบัตร, LN..."
                 value={patientSearchTerm}
                 onChange={(e) => setPatientSearchTerm(e.target.value)}
-                className="pl-10"
+                className="pl-10 h-10 text-sm bg-background border-border/50 focus:border-primary dark:bg-background/50"
               />
             </div>
           </CardHeader>
-          <CardContent className="space-y-3 max-h-[300px] lg:max-h-[600px] overflow-y-auto">
+          <CardContent className="space-y-2 max-h-[350px] lg:max-h-[550px] overflow-y-auto">
             {filteredPatients.length === 0 ? (
               <div className="text-center text-muted-foreground py-8">
                 <User className="h-12 w-12 mx-auto mb-2 opacity-50" />
@@ -1044,19 +1053,19 @@ export default function VisitManagement() {
               filteredPatients.map((patient) => (
                 <Card
                   key={patient._id}
-                  className={`p-3 cursor-pointer transition-all hover:shadow-md ${selectedPatient?._id === patient._id ? 'ring-2 ring-primary bg-primary/5' : ''
+                  className={`p-3 cursor-pointer transition-all hover:shadow-md border border-border/50 bg-card hover:bg-accent/50 ${selectedPatient?._id === patient._id ? 'ring-2 ring-primary bg-primary/5 dark:bg-primary/10 border-primary/50' : ''
                     }`}
                   onClick={() => handlePatientSelect(patient)}
                 >
                   <div className="space-y-2">
-                    <div className="font-medium text-sm">
+                    <div className="font-medium text-sm text-foreground">
                       {patient.title}{patient.firstName} {patient.lastName}
                     </div>
                     <div className="text-xs text-muted-foreground space-y-1">
-                      <div>LN: {patient.ln}</div>
-                      <div>บัตรประชาชน: {patient.idCard}</div>
-                      <div>อายุ: {patient.age} ปี</div>
-                      <div>วันเกิด: {formatDateForDisplay(patient.birthDate)}</div>
+                      <div>LN: <span className="text-foreground/80">{patient.ln}</span></div>
+                      <div>บัตรประชาชน: <span className="text-foreground/80">{patient.idCard}</span></div>
+                      <div>อายุ: <span className="text-foreground/80">{patient.age} ปี</span></div>
+                      <div>วันเกิด: <span className="text-foreground/80">{formatDateForDisplay(patient.birthDate)}</span></div>
                     </div>
                   </div>
                 </Card>
@@ -1067,10 +1076,10 @@ export default function VisitManagement() {
       </div>
 
       {/* Main Visit Form - Full width on mobile, 3/4 width on desktop */}
-      <div className="flex-1 space-y-6">
+      <div className="flex-1 space-y-4 sm:space-y-6">
         {/* Header with Visit Management */}
-        <Card className="shadow-card-custom border border-primary/20">
-          <CardContent className="p-4">
+        <Card className="shadow-card-custom border border-border/50 bg-card">
+          <CardContent className="p-4 bg-gradient-to-r from-primary/5 to-primary/10 dark:from-primary/10 dark:to-primary/20">
             <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
               <div className="flex items-center gap-4">
                 <div className="p-2 rounded-full bg-primary/20">
@@ -1565,15 +1574,15 @@ export default function VisitManagement() {
         )}
       </div>
 
-      {/* Visit History Sidebar - Hidden on mobile, shown on desktop */}
-      <div className="hidden lg:block w-80 space-y-4">
-        <Card className="shadow-card-custom h-full">
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
+      {/* Visit History Sidebar - Responsive layout */}
+      <div className="w-full lg:w-80 space-y-3 sm:space-y-4">
+        <Card className="shadow-card-custom border border-border/50 bg-card">
+          <CardHeader className="bg-gradient-to-r from-primary/5 to-primary/10 dark:from-primary/10 dark:to-primary/20 border-b border-border/20">
+            <CardTitle className="flex items-center gap-2 text-foreground">
               <Clock className="h-5 w-5 text-primary" />
               ประวัติ Visit ล่าสุด
             </CardTitle>
-            <CardDescription>
+            <CardDescription className="text-muted-foreground">
               รายการ visit ที่เปิดล่าสุด ({filteredVisits.length} รายการ)
             </CardDescription>
             {/* Search Input */}
@@ -1584,7 +1593,7 @@ export default function VisitManagement() {
                   placeholder="ค้นหา visit, ชื่อผู้ป่วย, แผนก..."
                   value={visitSearchTerm}
                   onChange={(e) => setVisitSearchTerm(e.target.value)}
-                  className="pl-10 pr-10 text-sm"
+                  className="pl-10 pr-10 text-sm bg-background border-border/50 focus:border-primary dark:bg-background/50"
                 />
                 {visitSearchTerm && (
                   <Button
@@ -1600,7 +1609,7 @@ export default function VisitManagement() {
               </div>
             </div>
           </CardHeader>
-          <CardContent className="space-y-3 max-h-[600px] overflow-y-auto">
+          <CardContent className="space-y-3 max-h-[400px] sm:max-h-[500px] lg:max-h-[600px] overflow-y-auto">
             {recentVisits.length === 0 ? (
               <div className="text-center text-muted-foreground py-8">
                 <FileText className="h-12 w-12 mx-auto mb-2 opacity-50" />
@@ -1615,47 +1624,27 @@ export default function VisitManagement() {
               </div>
             ) : (
               recentVisits.map((visit) => (
-                <Card key={visit._id} className="p-3 hover:shadow-md transition-shadow">
+                <Card key={visit._id} className="p-3 hover:shadow-md transition-shadow border border-border/50 bg-card hover:bg-accent/30">
                   <div className="space-y-2">
                     <div className="flex items-center justify-between">
-                      <div className="font-medium text-sm">
+                      <div className="font-medium text-sm text-foreground">
                         Visit: {visit.visitNumber}
                       </div>
                       {getStatusBadge(visit.status)}
                     </div>
                     <div className="text-xs text-muted-foreground space-y-1">
-                      <div>คนไข้: {visit.patientName}</div>
-                      <div>วันที่: {formatDateForDisplay(visit.visitDate)}</div>
-                      <div>แผนก: {visit.department}</div>
-                      <div className="truncate">อาการ: {visit.chiefComplaint}</div>
+                      <div>คนไข้: <span className="text-foreground/80">{visit.patientName}</span></div>
+                      <div>วันที่: <span className="text-foreground/80">{formatDateForDisplay(visit.visitDate)}</span></div>
+                      <div>แผนก: <span className="text-foreground/80">{visit.department}</span></div>
+                      <div className="truncate">อาการ: <span className="text-foreground/80">{visit.chiefComplaint}</span></div>
                     </div>
 
                     {/* Action Buttons */}
-                    <div className="flex gap-1 pt-2 border-t">
+                    <div className="flex gap-1 pt-2 border-t border-border/30">
                       <Button
                         size="sm"
                         variant="outline"
-                        className="flex-1 text-xs h-7 border-green-500 text-green-600 hover:bg-green-50"
-                        onClick={() => {
-                          // Set visit data for printing
-                          setVisitData(prev => ({ ...prev, visitNumber: visit.visitNumber }));
-                          // Find patient data from visit
-                          const patient = patients.find(p => p._id === visit.patientId);
-                          if (patient) {
-                            setSelectedPatient(patient);
-                            setTimeout(() => handlePrintSticker(), 100);
-                          }
-                        }}
-                        disabled={!isStickerPrintingConnected || !selectedStickerPrinter}
-                      >
-                        <Printer className="h-3 w-3 mr-1" />
-                        สติ๊กเกอร์
-                      </Button>
-
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        className="flex-1 text-xs h-7 border-blue-500 text-blue-600 hover:bg-blue-50"
+                        className="flex-1 text-xs h-7 border-blue-500 text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-950/50"
                         onClick={() => {
                           // Load visit data for editing
                           setVisitData(visit);
@@ -1672,7 +1661,7 @@ export default function VisitManagement() {
                       <Button
                         size="sm"
                         variant="outline"
-                        className="flex-1 text-xs h-7 border-red-500 text-red-600 hover:bg-red-50"
+                        className="flex-1 text-xs h-7 border-red-500 text-red-600 hover:bg-red-50 dark:hover:bg-red-950/50"
                         onClick={async () => {
                           if (confirm(`ต้องการลบ Visit ${visit.visitNumber} หรือไม่?`)) {
                             try {

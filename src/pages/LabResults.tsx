@@ -265,9 +265,28 @@ export default function LabResults() {
       // Save to database
       await apiService.createResult(resultData);
 
+      // Update order status to completed
+      console.log('Updating order status to completed for orderId:', selectedOrder);
+      await apiService.updateOrderStatus(selectedOrder, 'completed');
+      console.log('Order status updated successfully');
+
+      // Update visit status to completed if this order belongs to a visit
+      if (selectedOrderData.visitId) {
+        try {
+          console.log('Updating visit status to completed for visitId:', selectedOrderData.visitId);
+          await apiService.updateVisit(selectedOrderData.visitId, { status: 'completed' });
+          console.log('Visit status updated to completed successfully');
+        } catch (error) {
+          console.warn('Could not update visit status:', error);
+          // Don't fail the entire operation if visit update fails
+        }
+      } else {
+        console.log('No visitId found in order data, skipping visit status update');
+      }
+
       showSuccessToast({
         title: "บันทึกสำเร็จ",
-        description: "บันทึกผลการตรวจเรียบร้อยแล้ว",
+        description: "บันทึกผลการตรวจเรียบร้อยแล้ว และอัปเดตสถานะ visit เป็นเสร็จสิ้นแล้ว",
       });
 
       // Reset form and reload orders
@@ -309,17 +328,17 @@ export default function LabResults() {
   };
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4 sm:space-y-6">
       {/* Header */}
       <Card className="shadow-card-custom border border-primary/20">
         <CardHeader className="bg-gradient-medical text-white">
           <div className="flex items-center gap-3">
             <div className="p-2 bg-white/20 rounded-lg">
-              <ClipboardList className="h-6 w-6" />
+              <ClipboardList className="h-5 w-5 sm:h-6 sm:w-6" />
             </div>
             <div>
-              <CardTitle className="text-2xl font-bold">ลงผลการตรวจ</CardTitle>
-              <CardDescription className="text-white/80 mt-1">
+              <CardTitle className="text-xl sm:text-2xl font-bold">ลงผลการตรวจ</CardTitle>
+              <CardDescription className="text-white/80 mt-1 text-sm">
                 บันทึกผลการตรวจและแนบไฟล์รายงาน
               </CardDescription>
             </div>
@@ -327,9 +346,9 @@ export default function LabResults() {
         </CardHeader>
       </Card>
 
-      <div className="grid gap-6 lg:grid-cols-3">
+      <div className="grid gap-4 sm:gap-6 grid-cols-1 lg:grid-cols-3">
         {/* Orders List */}
-        <div className="lg:col-span-1 space-y-4">
+        <div className="lg:col-span-1 space-y-3 sm:space-y-4">
           <Card className="shadow-card-custom border border-primary/20">
             <CardHeader className="bg-primary/5 dark:bg-primary/10 border-b border-primary/20">
               <CardTitle className="flex items-center gap-2">
@@ -413,7 +432,7 @@ export default function LabResults() {
         </div>
 
         {/* Results Form */}
-        <div className="lg:col-span-2 space-y-6">
+        <div className="lg:col-span-2 space-y-4 sm:space-y-6">
           {selectedOrder ? (
             <>
               {/* Selected Order Info */}

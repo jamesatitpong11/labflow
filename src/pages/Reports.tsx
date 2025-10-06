@@ -34,6 +34,10 @@ export default function Reports() {
   const [dateFrom, setDateFrom] = useState("");
   const [dateTo, setDateTo] = useState("");
   const [selectedDepartment, setSelectedDepartment] = useState("");
+  
+  // Display dates in Thai format
+  const [dateFromDisplay, setDateFromDisplay] = useState("");
+  const [dateToDisplay, setDateToDisplay] = useState("");
   const [isGenerating, setIsGenerating] = useState(false);
   
   // Departments state
@@ -97,8 +101,13 @@ export default function Reports() {
     const thirtyDaysAgo = new Date();
     thirtyDaysAgo.setDate(today.getDate() - 30);
     
-    setDateFrom(thirtyDaysAgo.toISOString().split('T')[0]);
-    setDateTo(today.toISOString().split('T')[0]);
+    const dateFromISO = thirtyDaysAgo.toISOString().split('T')[0];
+    const dateToISO = today.toISOString().split('T')[0];
+    
+    setDateFrom(dateFromISO);
+    setDateTo(dateToISO);
+    setDateFromDisplay(convertFromInputDate(dateFromISO));
+    setDateToDisplay(convertFromInputDate(dateToISO));
   }, []);
 
   const loadDepartments = async () => {
@@ -311,6 +320,44 @@ export default function Reports() {
     return amount.toLocaleString('th-TH');
   };
 
+  // Format date to DD/MM/YYYY
+  const formatDateThai = (dateString: string) => {
+    if (!dateString) return '';
+    const date = new Date(dateString);
+    const day = date.getDate().toString().padStart(2, '0');
+    const month = (date.getMonth() + 1).toString().padStart(2, '0');
+    const year = date.getFullYear();
+    return `${day}/${month}/${year}`;
+  };
+
+  // Convert DD/MM/YYYY to YYYY-MM-DD for input value
+  const convertToInputDate = (thaiDate: string) => {
+    if (!thaiDate) return '';
+    const [day, month, year] = thaiDate.split('/');
+    if (!day || !month || !year) return '';
+    return `${year}-${month.padStart(2, '0')}-${day.padStart(2, '0')}`;
+  };
+
+  // Convert YYYY-MM-DD to DD/MM/YYYY
+  const convertFromInputDate = (inputDate: string) => {
+    if (!inputDate) return '';
+    const [year, month, day] = inputDate.split('-');
+    if (!year || !month || !day) return '';
+    return `${day}/${month}/${year}`;
+  };
+
+  // Handle date from change
+  const handleDateFromChange = (value: string) => {
+    setDateFrom(value);
+    setDateFromDisplay(convertFromInputDate(value));
+  };
+
+  // Handle date to change
+  const handleDateToChange = (value: string) => {
+    setDateTo(value);
+    setDateToDisplay(convertFromInputDate(value));
+  };
+
   return (
     <div className="space-y-6">
       {/* Header */}
@@ -362,22 +409,38 @@ export default function Reports() {
 
               <div className="space-y-2">
                 <Label htmlFor="date-from">วันที่เริ่มต้น</Label>
-                <Input 
-                  id="date-from"
-                  type="date"
-                  value={dateFrom}
-                  onChange={(e) => setDateFrom(e.target.value)}
-                />
+                <div className="relative">
+                  <Input 
+                    id="date-from"
+                    type="date"
+                    value={dateFrom}
+                    onChange={(e) => handleDateFromChange(e.target.value)}
+                    className="text-transparent"
+                  />
+                  <div className="absolute inset-0 flex items-center px-3 pointer-events-none bg-transparent">
+                    <span className="text-foreground">
+                      {dateFromDisplay || 'เลือกวันที่'}
+                    </span>
+                  </div>
+                </div>
               </div>
 
               <div className="space-y-2">
                 <Label htmlFor="date-to">วันที่สิ้นสุด</Label>
-                <Input 
-                  id="date-to"
-                  type="date"
-                  value={dateTo}
-                  onChange={(e) => setDateTo(e.target.value)}
-                />
+                <div className="relative">
+                  <Input 
+                    id="date-to"
+                    type="date"
+                    value={dateTo}
+                    onChange={(e) => handleDateToChange(e.target.value)}
+                    className="text-transparent"
+                  />
+                  <div className="absolute inset-0 flex items-center px-3 pointer-events-none bg-transparent">
+                    <span className="text-foreground">
+                      {dateToDisplay || 'เลือกวันที่'}
+                    </span>
+                  </div>
+                </div>
               </div>
 
               <div className="space-y-2">
@@ -555,8 +618,8 @@ export default function Reports() {
                                 <td className="p-3 text-sm">{visitor.department || '-'}</td>
                                 <td className="p-3 text-sm">{visitor.referringOrganization || visitor.organization || '-'}</td>
                                 <td className="p-3 text-sm">{visitor.patientRights || visitor.rights || '-'}</td>
-                                <td className="p-3 text-sm">{visitor.patientCreatedAt || '-'}</td>
-                                <td className="p-3 text-sm">{visitor.visitDate || '-'}</td>
+                                <td className="p-3 text-sm">{visitor.patientCreatedAt ? formatDateThai(visitor.patientCreatedAt) : '-'}</td>
+                                <td className="p-3 text-sm">{visitor.visitDate ? formatDateThai(visitor.visitDate) : '-'}</td>
                               </tr>
                             ))
                           )}
@@ -707,7 +770,7 @@ export default function Reports() {
                                 <td className="p-2 text-xs text-center">{(visitor as any).labTests?.['Anti HAV'] ? '1' : '-'}</td>
                                 <td className="p-2 text-xs text-center">{(visitor as any).labTests?.['Anti HCV'] ? '1' : '-'}</td>
                                 <td className="p-2 text-xs text-center">{(visitor as any).labTests?.['Anti HBs'] ? '1' : '-'}</td>
-                                <td className="p-2 text-xs text-center">{(visitor as any).labTests?.['Anti HIV screening'] ? '1' : '-'}</td>
+                                <td className="p-2 text-xs text-center">{(visitor as any).labTests?.['Anti HIV'] ? '1' : '-'}</td>
                                 <td className="p-2 text-xs text-center">{(visitor as any).labTests?.CA125 ? '1' : '-'}</td>
                                 <td className="p-2 text-xs text-center">{(visitor as any).labTests?.['CA15-3'] ? '1' : '-'}</td>
                                 <td className="p-2 text-xs text-center">{(visitor as any).labTests?.['CA19-9'] ? '1' : '-'}</td>
@@ -735,7 +798,7 @@ export default function Reports() {
                                 <td className="p-2 text-xs text-center">{(visitor as any).labTests?.['CK-MB'] ? '1' : '-'}</td>
                                 <td className="p-2 text-xs text-center">{(visitor as any).labTests?.CPK ? '1' : '-'}</td>
                                 <td className="p-2 text-xs text-center">{(visitor as any).labTests?.['Cystatin-C'] ? '1' : '-'}</td>
-                                <td className="p-2 text-xs text-center">{(visitor as any).labTests?.['Bilirubin, Direct'] ? '1' : '-'}</td>
+                                <td className="p-2 text-xs text-center">{(visitor as any).labTests?.['Direct Bilirubin'] ? '1' : '-'}</td>
                                 <td className="p-2 text-xs text-center">{(visitor as any).labTests?.GGT ? '1' : '-'}</td>
                                 <td className="p-2 text-xs text-center">{(visitor as any).labTests?.Globulin ? '1' : '-'}</td>
                                 <td className="p-2 text-xs text-center">{(visitor as any).labTests?.HbA1C ? '1' : '-'}</td>
@@ -745,12 +808,12 @@ export default function Reports() {
                                 <td className="p-2 text-xs text-center">{(visitor as any).labTests?.LDH ? '1' : '-'}</td>
                                 <td className="p-2 text-xs text-center">{(visitor as any).labTests?.Magnesium ? '1' : '-'}</td>
                                 <td className="p-2 text-xs text-center">{(visitor as any).labTests?.Phosphorus ? '1' : '-'}</td>
-                                <td className="p-2 text-xs text-center">{(visitor as any).labTests?.['Bilirubin, Total'] ? '1' : '-'}</td>
+                                <td className="p-2 text-xs text-center">{(visitor as any).labTests?.['Total Bilirubin'] ? '1' : '-'}</td>
                                 <td className="p-2 text-xs text-center">{(visitor as any).labTests?.['Total Protein'] ? '1' : '-'}</td>
                                 <td className="p-2 text-xs text-center">{(visitor as any).labTests?.Microalbumin ? '1' : '-'}</td>
-                                <td className="p-2 text-xs text-center">{(visitor as any).labTests?.['Beta HCG'] ? '1' : '-'}</td>
+                                <td className="p-2 text-xs text-center">{(visitor as any).labTests?.['Beta - HCG'] ? '1' : '-'}</td>
                                 <td className="p-2 text-xs text-center">{(visitor as any).labTests?.NSE ? '1' : '-'}</td>
-                                <td className="p-2 text-xs text-center">{(visitor as any).labTests?.VDRL ? '1' : '-'}</td>
+                                <td className="p-2 text-xs text-center">{(visitor as any).labTests?.['VDRL (RPR)'] ? '1' : '-'}</td>
                                 <td className="p-2 text-xs text-center">{(visitor as any).labTests?.Progesterone ? '1' : '-'}</td>
                                 <td className="p-2 text-xs text-center">{(visitor as any).labTests?.['Rheumatoid Factor'] ? '1' : '-'}</td>
                                 <td className="p-2 text-xs text-center">{(visitor as any).labTests?.['D-dimer'] ? '1' : '-'}</td>
@@ -824,7 +887,7 @@ export default function Reports() {
                                 <td className="p-2 text-xs">{sale.lastName || '-'}</td>
                                 <td className="p-2 text-xs">{sale.age || '-'}</td>
                                 <td className="p-2 text-xs">{sale.patientRights || '-'}</td>
-                                <td className="p-2 text-xs">{sale.orderDate || '-'}</td>
+                                <td className="p-2 text-xs">{sale.orderDate ? formatDateThai(sale.orderDate) : '-'}</td>
                                 <td className="p-2 text-xs">{sale.paymentMethod || '-'}</td>
                                 {itemColumns.map((columnName, colIndex) => (
                                   <td key={colIndex} className="p-2 text-xs text-center">
@@ -871,7 +934,7 @@ export default function Reports() {
                                 <td className="p-3">
                                   <span className="flex items-center gap-1">
                                     <Calendar className="h-4 w-4 text-muted-foreground" />
-                                    {row.date}
+                                    {formatDateThai(row.date)}
                                   </span>
                                 </td>
                                 <td className="p-3">{row.patients} คน</td>

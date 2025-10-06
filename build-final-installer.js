@@ -24,8 +24,15 @@ async function buildFinalInstaller() {
       console.log('   ✅ Frontend already built\n');
     }
 
-    // Step 2: Check launcher batch file
-    console.log('🔧 Step 2: Checking launcher batch file...');
+    // Step 2: Check launcher batch files
+    console.log('🔧 Step 2: Checking launcher batch files...');
+    
+    // Copy LabFlow-Smart-Launcher.bat if it exists
+    if (fs.existsSync('LabFlow-Smart-Launcher.bat')) {
+      console.log('   ✅ LabFlow-Smart-Launcher.bat found');
+    } else {
+      console.log('   ⚠️  LabFlow-Smart-Launcher.bat not found');
+    }
     
     if (!fs.existsSync('LabFlow-Launcher.bat')) {
       console.log('   Creating launcher batch file...');
@@ -96,6 +103,7 @@ exit`;
         "electron/**/*",
         "backend/**/*",
         "LabFlow-Launcher.bat",
+        "LabFlow-Smart-Launcher.bat",
         "public/iconlabflow.ico",
         "node_modules/**/*",
         "!node_modules/*/{CHANGELOG.md,README.md,README,readme.md,readme}",
@@ -158,6 +166,17 @@ exit`;
 
 ## After Installation:
 
+### Option 1: Smart Launcher (Recommended)
+1. Navigate to installation directory (usually C:\\Program Files\\LabFlow Clinic\\)
+2. Find "LabFlow-Smart-Launcher.bat" file
+3. Right-click on "LabFlow-Smart-Launcher.bat"
+4. Select "Create shortcut"
+5. Drag the shortcut to Desktop
+6. Rename to "LabFlow Clinic"
+7. Right-click shortcut → Properties → Change Icon
+8. Browse to: resources\\app\\public\\iconlabflow.ico
+
+### Option 2: Basic Launcher
 1. Navigate to installation directory (usually C:\\Program Files\\LabFlow Clinic\\)
 2. Find "LabFlow-Launcher.bat" file
 3. Right-click on "LabFlow-Launcher.bat"
@@ -199,6 +218,8 @@ exit`;
         console.log(`   Size: ${setupSizeInMB} MB`);
         console.log(`   Path: ${setupPath}`);
         console.log('   ✅ Includes LabFlow-Launcher.bat');
+        console.log('   ✅ Includes LabFlow-Smart-Launcher.bat');
+        console.log('   ✅ Includes iconlabflow.ico');
         console.log('   ✅ Creates desktop shortcut to main exe\n');
         
         console.log('📋 POST-INSTALLATION STEPS:');

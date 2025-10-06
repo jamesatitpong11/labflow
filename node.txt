@@ -1,6 +1,15 @@
 รันไฟล์เสร็จสิ้น
 npm run build:final-installer
 
+cd backend
+git add .
+git commit -m "Update backend with latest changes"
+git push origin main
+
+
+
+
+
 เปิดโปรแกรม
 LabFlow-Smart-Launcher
 

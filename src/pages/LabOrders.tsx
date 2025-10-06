@@ -772,7 +772,7 @@ ${itemsList}
           return test ? { name: test.name, price: test.price, code: test.code } : null;
         }).filter(Boolean)],
         total: getTotalPrice(),
-        paymentMethod: paymentMethod === 'cash' ? 'เงินสด' : paymentMethod === 'transfer' ? 'โอนเงิน' : 'ใช้สิทธิ'
+        paymentMethod: paymentMethod === 'cash' ? 'เงินสด' : paymentMethod === 'transfer' ? 'โอนเงิน' : paymentMethod === 'insurance' ? 'สปสช.' : 'เงินสด'
       };
 
       if (window.electronAPI && (window.electronAPI as any).printReceipt) {
@@ -1129,13 +1129,13 @@ ${itemsList}
       {/* Header */}
       <Card className="shadow-card-custom border border-primary/20">
         <CardContent className="p-4">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-4">
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+            <div className="flex items-center gap-3 sm:gap-4">
               <div className="p-2 rounded-full bg-primary/20">
-                <ShoppingCart className="h-6 w-6 text-primary" />
+                <ShoppingCart className="h-5 w-5 sm:h-6 sm:w-6 text-primary" />
               </div>
               <div>
-                <h1 className="text-2xl font-bold text-foreground">ซื้อรายการตรวจ</h1>
+                <h1 className="text-xl sm:text-2xl font-bold text-foreground">ซื้อรายการตรวจ</h1>
                 <p className="text-sm text-muted-foreground">เลือกรายการตรวจและชำระเงิน</p>
               </div>
             </div>
@@ -1178,9 +1178,9 @@ ${itemsList}
         </CardContent>
       </Card>
 
-      <div className="grid gap-6 lg:grid-cols-3">
+      <div className="grid gap-4 sm:gap-6 grid-cols-1 lg:grid-cols-3">
         {/* Lab Tests Selection */}
-        <div className="lg:col-span-2 space-y-6">
+        <div className="lg:col-span-2 space-y-4 sm:space-y-6">
           {/* Patient Info */}
           <Card className="shadow-card-custom">
             <CardHeader>
@@ -1191,7 +1191,7 @@ ${itemsList}
             </CardHeader>
             <CardContent>
               <div className="space-y-4">
-                <div className="flex gap-4">
+                <div className="flex flex-col sm:flex-row gap-4">
                   <div className="flex-1">
                     <Label htmlFor="visit-number">หมายเลข Visit</Label>
                     <div className="flex gap-2 relative">
@@ -1408,7 +1408,7 @@ ${itemsList}
         </div>
 
         {/* Order Summary & Payment */}
-        <div className="space-y-6">
+        <div className="space-y-4 sm:space-y-6">
           {/* Order Summary */}
           <Card className="shadow-card-custom">
             <CardHeader>
@@ -1472,21 +1472,21 @@ ${itemsList}
             </CardHeader>
             <CardContent>
               <RadioGroup value={paymentMethod} onValueChange={setPaymentMethod}>
-                <div className="flex items-center space-x-2 p-3 border border-border rounded-lg hover:bg-muted/30">
+                <div className="flex items-center space-x-2 p-2 sm:p-3 border border-border rounded-lg hover:bg-muted/30">
                   <RadioGroupItem value="cash" id="cash" />
                   <Label htmlFor="cash" className="flex items-center gap-2 cursor-pointer flex-1">
                     <Banknote className="h-4 w-4 text-success" />
                     เงินสด
                   </Label>
                 </div>
-                <div className="flex items-center space-x-2 p-3 border border-border rounded-lg hover:bg-muted/30">
+                <div className="flex items-center space-x-2 p-2 sm:p-3 border border-border rounded-lg hover:bg-muted/30">
                   <RadioGroupItem value="transfer" id="transfer" />
                   <Label htmlFor="transfer" className="flex items-center gap-2 cursor-pointer flex-1">
                     <CreditCard className="h-4 w-4 text-primary" />
                     โอนเงิน
                   </Label>
                 </div>
-                <div className="flex items-center space-x-2 p-3 border border-border rounded-lg hover:bg-muted/30">
+                <div className="flex items-center space-x-2 p-2 sm:p-3 border border-border rounded-lg hover:bg-muted/30">
                   <RadioGroupItem value="insurance" id="insurance" />
                   <Label htmlFor="insurance" className="flex items-center gap-2 cursor-pointer flex-1">
                     <Building className="h-4 w-4 text-warning" />

@@ -13,7 +13,7 @@ export default defineConfig({
   build: {
     outDir: 'dist',
     sourcemap: false,
-    minify: 'terser',
+    minify: 'esbuild', // เปลี่ยนจาก terser เป็น esbuild
     rollupOptions: {
       output: {
         manualChunks: {
@@ -25,6 +25,13 @@ export default defineConfig({
     }
   },
   define: {
-    'process.env.NODE_ENV': '"production"'
+    'process.env.NODE_ENV': '"production"',
+    __DEV__: false,
+    'import.meta.env.DEV': false,
+    'import.meta.env.PROD': true
+  },
+  mode: 'production',
+  esbuild: {
+    jsxDev: false
   }
 })

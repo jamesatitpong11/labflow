@@ -55,7 +55,7 @@ const LAB_TEST_MAPPINGS = {
   'LDH': 'LDH',
   'Magnesium': 'Magnesium',
   'Phosphorus': 'Phosphorus',
-  'Bilirubin, Total': 'Total Bilirubin',
+  'Total Bilirubin': 'Total Bilirubin',
   'Total Protein': 'Total Protein',
   'Microalbumin': 'Microalbumin',
   'Beta HCG': 'Beta - HCG',

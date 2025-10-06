@@ -4,6 +4,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { 
   Activity, 
   Users, 
@@ -17,8 +18,13 @@ import {
   UserPlus,
   Stethoscope,
   Settings,
-  Printer
+  Printer,
+  TestTube,
+  Eye,
+  BarChart3,
+  RefreshCw
 } from "lucide-react";
+import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 import { apiService } from "@/services/api";
 import { useToast } from "@/hooks/use-toast";
 import { showErrorToast } from "@/lib/toast-helpers";
@@ -69,14 +75,31 @@ export default function Dashboard() {
     newPatientsYesterday: 0,
   });
   
-  const [recentVisits, setRecentVisits] = useState<Array<{
-    visitId: string;
-    visitNumber: string;
-    patientName: string;
-    tests: string[];
-    status: string;
-    time: string;
+  const [monthlyRevenue, setMonthlyRevenue] = useState<Array<{
+    month: string;
+    revenue: number;
+    monthName: string;
   }>>([]);
+
+  // Revenue breakdown popup state
+  const [isRevenueDialogOpen, setIsRevenueDialogOpen] = useState(false);
+  const [revenueBreakdown, setRevenueBreakdown] = useState<{
+    cash: number;
+    creditCard: number;
+    bankTransfer: number;
+    insurance: number;
+    other: number;
+    total: number;
+    cancelled: number;
+  }>({
+    cash: 0,
+    creditCard: 0,
+    bankTransfer: 0,
+    insurance: 0,
+    other: 0,
+    total: 0,
+    cancelled: 0
+  });
   
   const [systemStatus, setSystemStatus] = useState({
     database: 'online' as 'online' | 'offline',
@@ -86,7 +109,7 @@ export default function Dashboard() {
   
   // Loading states
   const [isLoadingStats, setIsLoadingStats] = useState(true);
-  const [isLoadingVisits, setIsLoadingVisits] = useState(true);
+  const [isLoadingRevenue, setIsLoadingRevenue] = useState(true);
   const [isLoadingSystem, setIsLoadingSystem] = useState(true);
 
   // Load dashboard data on component mount and when date changes
@@ -107,59 +130,42 @@ export default function Dashboard() {
           newPatientsYesterday: statsData.newPatientsYesterday || 0,
         });
       } catch (statsError) {
-        console.warn('Failed to load stats, using fallback data:', statsError);
-        // Fallback mock data for stats
+        console.error('Failed to load stats:', statsError);
+        showErrorToast({
+          title: "ไม่สามารถโหลดสถิติได้",
+          description: "กรุณาตรวจสอบการเชื่อมต่อ API",
+        });
+        // Reset to zero values instead of mock data
         setStats({
-          todayPatients: 24,
-          todayTests: 67,
-          pendingResults: 15,
-          todayRevenue: 25750,
-          yesterdayPatients: 21,
-          yesterdayTests: 62,
-          yesterdayPendingResults: 18,
-          yesterdayRevenue: 22400,
-          newPatientsToday: 8,
-          newPatientsYesterday: 6,
+          todayPatients: 0,
+          todayTests: 0,
+          pendingResults: 0,
+          todayRevenue: 0,
+          yesterdayPatients: 0,
+          yesterdayTests: 0,
+          yesterdayPendingResults: 0,
+          yesterdayRevenue: 0,
+          newPatientsToday: 0,
+          newPatientsYesterday: 0,
         });
       }
       setIsLoadingStats(false);
 
-      // Load recent visits
-      setIsLoadingVisits(true);
+      // Load monthly revenue data
+      setIsLoadingRevenue(true);
       try {
-        const visitsData = await apiService.getRecentVisits(10);
-        setRecentVisits(visitsData);
-      } catch (visitsError) {
-        console.warn('Failed to load visits, using fallback data:', visitsError);
-        // Fallback mock data for recent visits
-        setRecentVisits([
-          {
-            visitId: "V001",
-            visitNumber: "V001",
-            patientName: "นางสาว สมใจ รักดี",
-            tests: ["CBC", "Lipid Profile"],
-            status: "completed",
-            time: "09:30"
-          },
-          {
-            visitId: "V002",
-            visitNumber: "V002", 
-            patientName: "นาย ใจดี มากใจ",
-            tests: ["Blood Sugar", "HbA1c"],
-            status: "pending",
-            time: "10:15"
-          },
-          {
-            visitId: "V003",
-            visitNumber: "V003",
-            patientName: "นางสาว มีสุข ความสุข",
-            tests: ["Urine Analysis"],
-            status: "in-progress",
-            time: "11:00"
-          }
-        ]);
+        const revenueData = await apiService.getMonthlyRevenue(6);
+        setMonthlyRevenue(revenueData);
+      } catch (revenueError) {
+        console.error('Failed to load monthly revenue:', revenueError);
+        showErrorToast({
+          title: "ไม่สามารถโหลดข้อมูลรายได้รายเดือนได้",
+          description: "กรุณาตรวจสอบการเชื่อมต่อ API",
+        });
+        // Reset to empty array instead of mock data
+        setMonthlyRevenue([]);
       }
-      setIsLoadingVisits(false);
+      setIsLoadingRevenue(false);
 
       // Load system status
       setIsLoadingSystem(true);
@@ -167,12 +173,16 @@ export default function Dashboard() {
         const systemData = await apiService.getSystemStatus();
         setSystemStatus(systemData);
       } catch (systemError) {
-        console.warn('Failed to load system status, using fallback data:', systemError);
-        // Fallback mock data for system status
+        console.error('Failed to load system status:', systemError);
+        showErrorToast({
+          title: "ไม่สามารถตรวจสอบสถานะระบบได้",
+          description: "กรุณาตรวจสอบการเชื่อมต่อ API",
+        });
+        // Set to offline status instead of mock data
         setSystemStatus({
-          database: 'online',
-          reportPrinter: 'online',
-          barcodePrinter: 'warning',
+          database: 'offline',
+          reportPrinter: 'offline',
+          barcodePrinter: 'offline',
         });
       }
       setIsLoadingSystem(false);
@@ -180,13 +190,13 @@ export default function Dashboard() {
     } catch (error) {
       console.error('Error loading dashboard data:', error);
       showErrorToast({
-        title: "เกิดข้อผิดพลาด",
-        description: "ใช้ข้อมูลตัวอย่างแทน - กรุณาตรวจสอบการเชื่อมต่อ API",
+        title: "เกิดข้อผิดพลาดในการโหลดข้อมูล",
+        description: "กรุณาตรวจสอบการเชื่อมต่อ API และลองใหม่อีกครั้ง",
       });
       
       // Set loading states to false even on error
       setIsLoadingStats(false);
-      setIsLoadingVisits(false);
+      setIsLoadingRevenue(false);
       setIsLoadingSystem(false);
     }
   };
@@ -199,6 +209,21 @@ export default function Dashboard() {
 
   const formatCurrency = (amount: number): string => {
     return new Intl.NumberFormat('th-TH').format(amount);
+  };
+
+  // Function to load revenue breakdown
+  const loadRevenueBreakdown = async (date: string) => {
+    try {
+      const breakdown = await apiService.getRevenueBreakdown(date);
+      setRevenueBreakdown(breakdown);
+      setIsRevenueDialogOpen(true);
+    } catch (error) {
+      console.error('Failed to load revenue breakdown:', error);
+      showErrorToast({
+        title: "ไม่สามารถโหลดข้อมูลได้",
+        description: "กรุณาตรวจสอบการเชื่อมต่อและลองใหม่อีกครั้ง",
+      });
+    }
   };
 
   const getStatusBadge = (status: string) => {
@@ -268,7 +293,9 @@ export default function Dashboard() {
       value: isLoadingStats ? "..." : formatCurrency(stats.todayRevenue),
       change: isLoadingStats ? "..." : calculatePercentageChange(stats.todayRevenue, stats.yesterdayRevenue),
       icon: TrendingUp,
-      color: "text-primary"
+      color: "text-primary",
+      clickable: true,
+      onClick: () => loadRevenueBreakdown(selectedDate)
     }
   ];
 
@@ -299,12 +326,12 @@ export default function Dashboard() {
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold text-foreground">แดชบอร์ด</h1>
+          <h1 className="text-xl sm:text-2xl font-bold text-foreground">แดชบอร์ด</h1>
           <p className="text-muted-foreground mt-1 text-sm">ภาพรวมของระบบห้องปฏิบัติการ</p>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex flex-col sm:flex-row items-start sm:items-center gap-2">
           <div className="flex items-center gap-2">
             <Calendar className="h-4 w-4 text-muted-foreground" />
             <Input
@@ -365,7 +392,7 @@ export default function Dashboard() {
                   setDisplayDate(formatDateForDisplay(today));
                 }
               }}
-              className="w-32 text-center"
+              className="w-28 sm:w-32 text-center text-sm"
             />
           </div>
           <Button 
@@ -379,16 +406,34 @@ export default function Dashboard() {
           >
             วันนี้
           </Button>
+          <Button 
+            variant="outline" 
+            size="sm"
+            onClick={() => loadDashboardData()}
+            disabled={isLoadingStats || isLoadingRevenue || isLoadingSystem}
+          >
+            <RefreshCw className={`h-4 w-4 mr-1 ${(isLoadingStats || isLoadingRevenue || isLoadingSystem) ? 'animate-spin' : ''}`} />
+            รีเฟรช
+          </Button>
         </div>
       </div>
 
       {/* Stats Cards */}
-      <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4">
-        {statsCards.map((stat) => (
-          <Card className="shadow-card-custom">
+      <div className="grid gap-4 sm:gap-6 grid-cols-1 sm:grid-cols-2 lg:grid-cols-4">
+        {statsCards.map((stat, index) => (
+          <Card 
+            key={index}
+            className={`shadow-card-custom ${stat.clickable ? 'cursor-pointer hover:shadow-lg hover:-translate-y-1 transition-all duration-300' : ''}`}
+            onClick={stat.onClick}
+          >
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
               <CardTitle className="text-sm font-medium text-muted-foreground">
                 {stat.title}
+                {stat.clickable && (
+                  <span className="ml-2 text-xs text-primary opacity-70">
+                    (คลิกเพื่อดูรายละเอียด)
+                  </span>
+                )}
               </CardTitle>
               <div className="p-2 rounded-xl bg-primary/10">
                 <stat.icon className={`h-5 w-5 ${stat.color}`} />
@@ -410,7 +455,7 @@ export default function Dashboard() {
         ))}
       </div>
 
-      <div className="grid gap-6 lg:grid-cols-2">
+      <div className="grid gap-4 sm:gap-6 grid-cols-1 lg:grid-cols-2">
         {/* Quick Actions */}
         <Card className="shadow-card-custom">
           <CardHeader>
@@ -424,10 +469,10 @@ export default function Dashboard() {
               เข้าถึงฟังก์ชันหลักของระบบได้อย่างรวดเร็ว
             </CardDescription>
           </CardHeader>
-          <CardContent className="grid gap-4 md:grid-cols-2">
+          <CardContent className="grid gap-3 sm:gap-4 grid-cols-1 sm:grid-cols-2">
             <Button 
               className="h-14 flex-col gap-1 bg-gradient-to-br from-primary to-primary/80 hover:from-primary/90 hover:to-primary/70 text-white shadow-lg hover:shadow-xl hover:-translate-y-1 transition-all duration-300"
-              onClick={() => navigate('/patients/new')}
+              onClick={() => navigate('/patient-registration')}
             >
               <UserPlus className="h-5 w-5" />
               <span className="text-sm font-medium">เพิ่มผู้ป่วยใหม่</span>
@@ -436,10 +481,10 @@ export default function Dashboard() {
             <Button 
               variant="outline" 
               className="h-14 flex-col gap-1 border-primary/20 hover:bg-primary/5 hover:border-primary/40 shadow-md hover:shadow-lg hover:-translate-y-1 transition-all duration-300"
-              onClick={() => navigate('/checkups/new')}
+              onClick={() => navigate('/visit-management')}
             >
               <Stethoscope className="h-5 w-5 text-primary" />
-              <span className="text-sm font-medium text-primary">ตรวจสุขภาพใหม่</span>
+              <span className="text-sm font-medium text-primary">เปิดรายตรวจใหม่</span>
             </Button>
             
             <Button 
@@ -462,49 +507,75 @@ export default function Dashboard() {
           </CardContent>
         </Card>
 
-        {/* Recent Visits */}
+        {/* Monthly Revenue Chart */}
         <Card className="shadow-card-custom">
           <CardHeader>
             <CardTitle className="flex items-center gap-3 text-base">
-              <div className="p-2 rounded-xl bg-success/10">
-                <Clock className="h-4 w-4 text-success" />
+              <div className="p-2 rounded-xl bg-primary/10">
+                <BarChart3 className="h-4 w-4 text-primary" />
               </div>
-              Visit ล่าสุด
+              รายได้รายเดือน
             </CardTitle>
             <CardDescription className="text-sm">
-              รายการ Visit ที่เกิดขึ้นในวันนี้
+              แสดงรายได้ของ 6 เดือนที่ผ่านมา
             </CardDescription>
           </CardHeader>
-          <CardContent className="space-y-3">
-            {isLoadingVisits ? (
+          <CardContent>
+            {isLoadingRevenue ? (
               <div className="flex items-center justify-center py-8">
                 <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
                 <span className="ml-2 text-muted-foreground">กำลังโหลดข้อมูล...</span>
               </div>
-            ) : recentVisits.length === 0 ? (
+            ) : monthlyRevenue.length === 0 ? (
               <div className="text-center py-8 text-muted-foreground">
-                ไม่มีข้อมูล Visit ในวันนี้
+                ไม่มีข้อมูลรายได้
               </div>
             ) : (
-              recentVisits.map((visit) => (
-                <div
-                  key={visit.visitId}
-                  className="flex items-center justify-between p-4 rounded-lg bg-card border border-border/20 shadow-card hover:shadow-card-hover hover:-translate-y-0.5 transition-all duration-200 dark:bg-card"
-                >
-                  <div className="flex-1">
-                    <div className="flex items-center gap-3">
-                      <span className="font-semibold text-foreground">{visit.patientName}</span>
-                      <Badge variant="outline" className="text-xs font-medium">{visit.visitNumber}</Badge>
-                    </div>
-                    <div className="text-sm text-muted-foreground mt-2">
-                      {visit.tests.join(", ")} • เวลา {visit.time}
-                    </div>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    {getStatusBadge(visit.status)}
-                  </div>
-                </div>
-              ))
+              <div className="h-48 sm:h-64 w-full">
+                <ResponsiveContainer width="100%" height="100%">
+                  <LineChart data={monthlyRevenue} margin={{ top: 20, right: 30, left: 20, bottom: 5 }}>
+                    <CartesianGrid strokeDasharray="3 3" className="opacity-30" />
+                    <XAxis 
+                      dataKey="monthName" 
+                      tick={{ fontSize: 12 }}
+                      className="text-muted-foreground"
+                    />
+                    <YAxis 
+                      tick={{ fontSize: 12 }}
+                      className="text-muted-foreground"
+                      tickFormatter={(value) => `${(value / 1000).toFixed(0)}k`}
+                    />
+                    <Tooltip 
+                      formatter={(value: number) => [`${formatCurrency(value)} บาท`, 'รายได้']}
+                      labelFormatter={(label) => `เดือน: ${label}`}
+                      contentStyle={{
+                        backgroundColor: 'hsl(var(--card))',
+                        border: '1px solid hsl(var(--border))',
+                        borderRadius: '8px',
+                        fontSize: '14px'
+                      }}
+                    />
+                    <Line 
+                      type="monotone"
+                      dataKey="revenue" 
+                      stroke="hsl(var(--primary))"
+                      strokeWidth={3}
+                      dot={{ 
+                        fill: 'hsl(var(--primary))', 
+                        strokeWidth: 2, 
+                        r: 6 
+                      }}
+                      activeDot={{ 
+                        r: 8, 
+                        fill: 'hsl(var(--primary))',
+                        stroke: 'hsl(var(--background))',
+                        strokeWidth: 2
+                      }}
+                      className="drop-shadow-sm"
+                    />
+                  </LineChart>
+                </ResponsiveContainer>
+              </div>
             )}
           </CardContent>
         </Card>
@@ -521,9 +592,9 @@ export default function Dashboard() {
           </CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
-          <div className="grid gap-4 md:grid-cols-3">
+          <div className="grid gap-3 sm:gap-4 grid-cols-1 sm:grid-cols-2 md:grid-cols-3">
             {isLoadingSystem ? (
-              <div className="col-span-3 flex items-center justify-center py-6">
+              <div className="col-span-1 sm:col-span-2 md:col-span-3 flex items-center justify-center py-6">
                 <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
                 <span className="ml-2 text-muted-foreground">กำลังตรวจสอบสถานะระบบ...</span>
               </div>
@@ -543,7 +614,7 @@ export default function Dashboard() {
           </div>
           
           <div className="pt-4 border-t border-border/20">
-            <div className="flex gap-3">
+            <div className="flex flex-col sm:flex-row gap-2 sm:gap-3">
               <Button
                 onClick={() => navigate('/printer-test')}
                 variant="outline"
@@ -566,6 +637,79 @@ export default function Dashboard() {
           </div>
         </CardContent>
       </Card>
+
+      {/* Revenue Breakdown Dialog */}
+      <Dialog open={isRevenueDialogOpen} onOpenChange={setIsRevenueDialogOpen}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <TrendingUp className="h-5 w-5 text-primary" />
+              รายละเอียดรายได้วันนี้
+            </DialogTitle>
+            <DialogDescription>
+              แยกตามประเภทการชำระเงิน - วันที่ {formatDateForDisplay(selectedDate)}
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div className="space-y-3">
+              <div className="flex justify-between items-center p-3 rounded-lg bg-green-50 dark:bg-green-950/20">
+                <span className="font-medium text-green-800 dark:text-green-200">💵 เงินสด</span>
+                <span className="font-bold text-green-800 dark:text-green-200">
+                  {formatCurrency(revenueBreakdown.cash)} บาท
+                </span>
+              </div>
+              
+              <div className="flex justify-between items-center p-3 rounded-lg bg-blue-50 dark:bg-blue-950/20">
+                <span className="font-medium text-blue-800 dark:text-blue-200">💳 บัตรเครดิต</span>
+                <span className="font-bold text-blue-800 dark:text-blue-200">
+                  {formatCurrency(revenueBreakdown.creditCard)} บาท
+                </span>
+              </div>
+              
+              <div className="flex justify-between items-center p-3 rounded-lg bg-purple-50 dark:bg-purple-950/20">
+                <span className="font-medium text-purple-800 dark:text-purple-200">🏦 โอนเงิน</span>
+                <span className="font-bold text-purple-800 dark:text-purple-200">
+                  {formatCurrency(revenueBreakdown.bankTransfer)} บาท
+                </span>
+              </div>
+              
+              <div className="flex justify-between items-center p-3 rounded-lg bg-orange-50 dark:bg-orange-950/20">
+                <span className="font-medium text-orange-800 dark:text-orange-200">🏥 สปสช.</span>
+                <span className="font-bold text-orange-800 dark:text-orange-200">
+                  {formatCurrency(revenueBreakdown.insurance)} บาท
+                </span>
+              </div>
+              
+              {revenueBreakdown.other > 0 && (
+                <div className="flex justify-between items-center p-3 rounded-lg bg-gray-50 dark:bg-gray-950/20">
+                  <span className="font-medium text-gray-800 dark:text-gray-200">📄 อื่นๆ</span>
+                  <span className="font-bold text-gray-800 dark:text-gray-200">
+                    {formatCurrency(revenueBreakdown.other)} บาท
+                  </span>
+                </div>
+              )}
+              
+              {revenueBreakdown.cancelled > 0 && (
+                <div className="flex justify-between items-center p-3 rounded-lg bg-red-50 dark:bg-red-950/20">
+                  <span className="font-medium text-red-800 dark:text-red-200">❌ ยกเลิก</span>
+                  <span className="font-bold text-red-800 dark:text-red-200">
+                    {formatCurrency(revenueBreakdown.cancelled)} บาท
+                  </span>
+                </div>
+              )}
+            </div>
+            
+            <div className="border-t pt-3">
+              <div className="flex justify-between items-center p-4 rounded-lg bg-primary/10">
+                <span className="font-bold text-primary text-lg">รวมทั้งหมด</span>
+                <span className="font-bold text-primary text-xl">
+                  {formatCurrency(revenueBreakdown.total)} บาท
+                </span>
+              </div>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

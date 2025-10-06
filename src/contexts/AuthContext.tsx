@@ -49,7 +49,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       
       if (isElectron) {
         // Force use correct URL in Electron
-        apiUrl = 'http://localhost:3002/api/auth/login';
+        apiUrl = 'http://localhost:3001/api/auth/login';
         console.log('AuthContext: Using Electron API URL:', apiUrl);
       } else {
         // Use environment variable or relative URL for web

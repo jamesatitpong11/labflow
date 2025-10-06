@@ -1899,7 +1899,12 @@ app.get('/api/dashboard/stats', async (req, res) => {
     });
 
     const todayRevenue = await db.collection('orders').aggregate([
-      { $match: { createdAt: { $gte: todayStart, $lt: todayEnd } } },
+      { 
+        $match: { 
+          createdAt: { $gte: todayStart, $lt: todayEnd },
+          status: { $in: ['process', 'completed'] } // นับเฉพาะที่ชำระเงินแล้ว
+        } 
+      },
       { $group: { _id: null, total: { $sum: '$totalAmount' } } }
     ]).toArray();
 
@@ -1925,7 +1930,12 @@ app.get('/api/dashboard/stats', async (req, res) => {
     });
 
     const yesterdayRevenue = await db.collection('orders').aggregate([
-      { $match: { createdAt: { $gte: yesterday, $lt: yesterdayEnd } } },
+      { 
+        $match: { 
+          createdAt: { $gte: yesterday, $lt: yesterdayEnd },
+          status: { $in: ['process', 'completed'] } // นับเฉพาะที่ชำระเงินแล้ว
+        } 
+      },
       { $group: { _id: null, total: { $sum: '$totalAmount' } } }
     ]).toArray();
 
@@ -2108,7 +2118,7 @@ app.get('/api/dashboard/monthly-revenue', async (req, res) => {
         {
           $match: {
             createdAt: { $gte: date, $lt: nextMonth },
-            status: { $ne: 'cancelled' } // Exclude cancelled orders
+            status: { $in: ['process', 'completed'] } // นับเฉพาะที่ชำระเงินแล้ว
           }
         },
         {
@@ -2149,7 +2159,7 @@ app.get('/api/dashboard/revenue-breakdown', async (req, res) => {
       {
         $match: {
           createdAt: { $gte: todayStart, $lt: todayEnd },
-          status: { $ne: 'cancelled' } // Exclude cancelled orders
+          status: { $in: ['process', 'completed'] } // นับเฉพาะที่ชำระเงินแล้ว
         }
       },
       {
@@ -2167,7 +2177,8 @@ app.get('/api/dashboard/revenue-breakdown', async (req, res) => {
       bankTransfer: 0,
       insurance: 0,
       other: 0,
-      total: 0
+      total: 0,
+      cancelled: 0
     };
 
     // Process the results and map payment methods
@@ -2202,6 +2213,24 @@ app.get('/api/dashboard/revenue-breakdown', async (req, res) => {
           break;
       }
     });
+
+    // Get cancelled orders separately
+    const cancelledOrders = await db.collection('orders').aggregate([
+      {
+        $match: {
+          createdAt: { $gte: todayStart, $lt: todayEnd },
+          status: 'cancelled'
+        }
+      },
+      {
+        $group: {
+          _id: null,
+          total: { $sum: '$totalAmount' }
+        }
+      }
+    ]).toArray();
+
+    breakdown.cancelled = cancelledOrders[0]?.total || 0;
 
     res.json(breakdown);
   } catch (error) {
