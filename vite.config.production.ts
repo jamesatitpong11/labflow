@@ -28,7 +28,9 @@ export default defineConfig({
     'process.env.NODE_ENV': '"production"',
     __DEV__: false,
     'import.meta.env.DEV': false,
-    'import.meta.env.PROD': true
+    'import.meta.env.PROD': true,
+    'import.meta.env.VITE_API_URL': '"https://labflow-clinic-backend-skzx.onrender.com"',
+    'import.meta.env.VITE_APP_ENV': '"production"'
   },
   mode: 'production',
   esbuild: {

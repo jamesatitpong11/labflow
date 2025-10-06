@@ -113,7 +113,21 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         return false;
       }
 
-      const response = await fetch('/api/auth/validate', {
+      // Use same logic as login for API URL
+      const isElectron = typeof window !== 'undefined' && 
+                        (window.electronAPI || 
+                         (window as any).electron || 
+                         navigator.userAgent.includes('Electron'));
+      
+      let apiUrl;
+      if (isElectron) {
+        apiUrl = 'http://localhost:3001/api/auth/validate';
+      } else {
+        const baseUrl = import.meta.env.VITE_API_URL || 'https://labflow-clinic-backend-skzx.onrender.com';
+        apiUrl = baseUrl.startsWith('http') ? `${baseUrl}/api/auth/validate` : '/api/auth/validate';
+      }
+
+      const response = await fetch(apiUrl, {
         method: 'GET',
         headers: {
           'Content-Type': 'application/json',
@@ -151,7 +165,21 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         
         // Call logout API to clear server session
         if (authData.username) {
-          await fetch('/api/auth/logout', {
+          // Use same logic for API URL
+          const isElectron = typeof window !== 'undefined' && 
+                            (window.electronAPI || 
+                             (window as any).electron || 
+                             navigator.userAgent.includes('Electron'));
+          
+          let apiUrl;
+          if (isElectron) {
+            apiUrl = 'http://localhost:3001/api/auth/logout';
+          } else {
+            const baseUrl = import.meta.env.VITE_API_URL || 'https://labflow-clinic-backend-skzx.onrender.com';
+            apiUrl = baseUrl.startsWith('http') ? `${baseUrl}/api/auth/logout` : '/api/auth/logout';
+          }
+
+          await fetch(apiUrl, {
             method: 'POST',
             headers: {
               'Content-Type': 'application/json',
