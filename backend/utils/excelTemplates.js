@@ -213,7 +213,7 @@ class ExcelTemplateProcessor {
       row.values = {
         visitNumber: item.visitNumber || '-',
         ln: item.ln || '-',
-        idCard: item.idCard || '-',
+        idCard: (item.idCard && !item.idCard.startsWith('NO_ID')) ? item.idCard : '',
         title: item.title || '-',
         firstName: item.firstName || '-',
         lastName: item.lastName || '-',

@@ -1008,6 +1008,142 @@ ipcMain.handle('print-label', async (event, options) => {
   }
 });
 
+// Print receipt (specialized for receipt printing)
+ipcMain.handle('print-receipt', async (event, printerName, receiptData) => {
+  try {
+    console.log('Main process: print-receipt called');
+    console.log('Printer name:', printerName);
+    console.log('Receipt data:', JSON.stringify(receiptData, null, 2));
+    
+    if (!printerName) {
+      return { success: false, message: 'ไม่ได้ระบุเครื่องพิมพ์' };
+    }
+
+    if (!receiptData) {
+      return { success: false, message: 'ไม่มีข้อมูลใบเสร็จ' };
+    }
+
+    // Create receipt HTML content
+    const receiptHTML = `
+      <div style="width: 80mm; font-family: 'Courier New', monospace; font-size: 12px; line-height: 1.4;">
+        <div style="text-align: center; margin-bottom: 10px;">
+          <h3 style="margin: 0; font-size: 14px;">${receiptData.clinic || 'LabFlow Clinic'}</h3>
+          <p style="margin: 2px 0; font-size: 10px;">ใบเสร็จรับเงิน</p>
+        </div>
+        
+        <div style="margin-bottom: 10px; font-size: 10px;">
+          <div>Visit: ${receiptData.visitNumber || ''}</div>
+          <div>ผู้ป่วย: ${receiptData.patient?.name || ''}</div>
+          <div>อายุ: ${receiptData.patient?.age || ''} ปี</div>
+          <div>วันที่: ${receiptData.date || ''} ${receiptData.time || ''}</div>
+        </div>
+        
+        <div style="border-top: 1px dashed #000; border-bottom: 1px dashed #000; padding: 5px 0; margin: 10px 0;">
+          ${receiptData.items?.map(item => `
+            <div style="display: flex; justify-content: space-between; margin: 2px 0;">
+              <span style="flex: 1;">${item.name || ''}</span>
+              <span>${item.price?.toLocaleString() || '0'}</span>
+            </div>
+          `).join('') || ''}
+        </div>
+        
+        <div style="text-align: right; margin: 10px 0; font-weight: bold;">
+          <div>รวม: ${receiptData.total?.toLocaleString() || '0'} บาท</div>
+          <div style="font-size: 10px;">ชำระ: ${receiptData.paymentMethod || 'เงินสด'}</div>
+        </div>
+        
+        <div style="text-align: center; margin-top: 15px; font-size: 10px;">
+          <p>ขอบคุณที่ใช้บริการ</p>
+        </div>
+      </div>
+    `;
+
+    // Use Electron's webContents.print() for receipt printing
+    const electronPrintOptions = {
+      silent: true, // Print silently without dialog
+      printBackground: true,
+      deviceName: printerName,
+      margins: {
+        marginType: 'custom',
+        top: 5,
+        bottom: 5,
+        left: 5,
+        right: 5
+      },
+      pageSize: {
+        width: 80000, // 80mm in microns
+        height: 200000  // 200mm in microns (auto-adjust)
+      }
+    };
+    
+    console.log('Receipt print options:', electronPrintOptions);
+    
+    // Create a new window for printing receipt
+    const printWindow = new BrowserWindow({
+      show: false,
+      webPreferences: {
+        nodeIntegration: false,
+        contextIsolation: true
+      }
+    });
+    
+    const htmlContent = `
+      <!DOCTYPE html>
+      <html>
+      <head>
+        <meta charset="UTF-8">
+        <title>Receipt</title>
+        <style>
+          @page { 
+            size: 80mm auto; 
+            margin: 5mm;
+          }
+          body { 
+            margin: 0; 
+            padding: 0; 
+            font-family: 'Courier New', monospace; 
+            font-size: 12px; 
+          }
+          @media print {
+            body { margin: 0; }
+          }
+        </style>
+      </head>
+      <body>${receiptHTML}</body>
+      </html>
+    `;
+    
+    await printWindow.loadURL(`data:text/html;charset=utf-8,${encodeURIComponent(htmlContent)}`);
+    
+    return new Promise((resolve) => {
+      // Set timeout to prevent hanging
+      const timeoutId = setTimeout(() => {
+        console.log('Receipt print timeout');
+        printWindow.close();
+        resolve({ success: false, message: 'การพิมพ์ใบเสร็จหมดเวลา (Timeout)' });
+      }, 15000); // 15 seconds timeout
+
+      printWindow.webContents.print(electronPrintOptions, (success, failureReason) => {
+        clearTimeout(timeoutId);
+        printWindow.close();
+        
+        if (success) {
+          const message = `พิมพ์ใบเสร็จไปยัง ${printerName} สำเร็จ`;
+          console.log('Receipt print success:', message);
+          resolve({ success: true, message });
+        } else {
+          console.error('Receipt print failed:', failureReason);
+          resolve({ success: false, message: `เกิดข้อผิดพลาด: ${failureReason || 'ไม่ทราบสาเหตุ'}` });
+        }
+      });
+    });
+    
+  } catch (error) {
+    console.error('Receipt print error:', error);
+    return { success: false, message: 'เกิดข้อผิดพลาดในการพิมพ์ใบเสร็จ: ' + error.message };
+  }
+});
+
 // Test database connection
 ipcMain.handle('test-database-connection', async () => {
   try {

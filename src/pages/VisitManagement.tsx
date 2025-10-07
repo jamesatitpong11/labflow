@@ -1023,12 +1023,12 @@ export default function VisitManagement() {
         {/* Printer Connection Test removed - use Settings page instead */}
         
         <Card className="shadow-card-custom border border-border/50 bg-card">
-          <CardHeader className="bg-gradient-to-r from-primary/5 to-primary/10 dark:from-primary/10 dark:to-primary/20 border-b border-border/20">
-            <CardTitle className="flex items-center gap-2 text-foreground">
-              <Search className="h-5 w-5 text-primary" />
+          <CardHeader className="bg-gradient-to-r from-primary/5 to-primary/10 dark:from-primary/10 dark:to-primary/20 border-b border-border/20 pb-3">
+            <CardTitle className="flex items-center gap-2 text-foreground text-sm">
+              <Search className="h-4 w-4 text-primary" />
               ค้นหาคนไข้
             </CardTitle>
-            <CardDescription className="text-muted-foreground">
+            <CardDescription className="text-muted-foreground text-xs">
               เลือกคนไข้เพื่อเปิด visit
             </CardDescription>
 
@@ -1043,7 +1043,7 @@ export default function VisitManagement() {
               />
             </div>
           </CardHeader>
-          <CardContent className="space-y-2 max-h-[350px] lg:max-h-[550px] overflow-y-auto">
+          <CardContent className="space-y-1.5 max-h-[350px] lg:max-h-[550px] overflow-y-auto pt-3">
             {filteredPatients.length === 0 ? (
               <div className="text-center text-muted-foreground py-8">
                 <User className="h-12 w-12 mx-auto mb-2 opacity-50" />
@@ -1053,17 +1053,19 @@ export default function VisitManagement() {
               filteredPatients.map((patient) => (
                 <Card
                   key={patient._id}
-                  className={`p-3 cursor-pointer transition-all hover:shadow-md border border-border/50 bg-card hover:bg-accent/50 ${selectedPatient?._id === patient._id ? 'ring-2 ring-primary bg-primary/5 dark:bg-primary/10 border-primary/50' : ''
+                  className={`p-2 cursor-pointer transition-all hover:shadow-md border border-border/50 bg-card hover:bg-accent/50 ${selectedPatient?._id === patient._id ? 'ring-2 ring-primary bg-primary/5 dark:bg-primary/10 border-primary/50' : ''
                     }`}
                   onClick={() => handlePatientSelect(patient)}
                 >
-                  <div className="space-y-2">
-                    <div className="font-medium text-sm text-foreground">
+                  <div className="space-y-1">
+                    <div className="font-medium text-xs text-foreground">
                       {patient.title}{patient.firstName} {patient.lastName}
                     </div>
-                    <div className="text-xs text-muted-foreground space-y-1">
+                    <div className="text-xs text-muted-foreground space-y-0.5">
                       <div>LN: <span className="text-foreground/80">{patient.ln}</span></div>
-                      <div>บัตรประชาชน: <span className="text-foreground/80">{patient.idCard}</span></div>
+                      {patient.idCard && !patient.idCard.toUpperCase().startsWith('NO_ID') && (
+                        <div>บัตรประชาชน: <span className="text-foreground/80">{patient.idCard}</span></div>
+                      )}
                       <div>อายุ: <span className="text-foreground/80">{patient.age} ปี</span></div>
                       <div>วันเกิด: <span className="text-foreground/80">{formatDateForDisplay(patient.birthDate)}</span></div>
                     </div>
@@ -1079,15 +1081,15 @@ export default function VisitManagement() {
       <div className="flex-1 space-y-4 sm:space-y-6">
         {/* Header with Visit Management */}
         <Card className="shadow-card-custom border border-border/50 bg-card">
-          <CardContent className="p-4 bg-gradient-to-r from-primary/5 to-primary/10 dark:from-primary/10 dark:to-primary/20">
-            <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
-              <div className="flex items-center gap-4">
-                <div className="p-2 rounded-full bg-primary/20">
-                  <Stethoscope className="h-6 w-6 text-primary" />
+          <CardContent className="p-3 bg-gradient-to-r from-primary/5 to-primary/10 dark:from-primary/10 dark:to-primary/20">
+            <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-3">
+              <div className="flex items-center gap-3">
+                <div className="p-1.5 rounded-full bg-primary/20">
+                  <Stethoscope className="h-5 w-5 text-primary" />
                 </div>
                 <div>
-                  <h1 className="text-xl lg:text-2xl font-bold text-foreground">จัดการ Visit</h1>
-                  <p className="text-sm text-muted-foreground">เปิด Visit ใหม่และจัดการข้อมูลการตรวจ</p>
+                  <h1 className="text-lg lg:text-xl font-bold text-foreground">จัดการ Visit</h1>
+                  <p className="text-xs text-muted-foreground">เปิด Visit ใหม่และจัดการข้อมูลการตรวจ</p>
                 </div>
               </div>
 
@@ -1164,14 +1166,14 @@ export default function VisitManagement() {
           <div className="space-y-6">
             {/* Patient Info Card */}
             <Card className="shadow-card-custom border border-primary/20">
-              <CardHeader className="bg-primary/5 dark:bg-primary/10 border-b border-primary/20">
-                <CardTitle className="flex items-center gap-2">
-                  <User className="h-5 w-5 text-primary" />
+              <CardHeader className="bg-primary/5 dark:bg-primary/10 border-b border-primary/20 pb-3">
+                <CardTitle className="flex items-center gap-2 text-sm">
+                  <User className="h-4 w-4 text-primary" />
                   ข้อมูลคนไข้
                 </CardTitle>
               </CardHeader>
-              <CardContent className="pt-6">
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 text-sm">
+              <CardContent className="pt-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 text-xs">
                   <div>
                     <Label className="text-muted-foreground">ชื่อ-นามสกุล</Label>
                     <p className="font-medium">{selectedPatient.title}{selectedPatient.firstName} {selectedPatient.lastName}</p>
@@ -1180,10 +1182,12 @@ export default function VisitManagement() {
                     <Label className="text-muted-foreground">LN</Label>
                     <p className="font-medium">{selectedPatient.ln}</p>
                   </div>
-                  <div>
-                    <Label className="text-muted-foreground">เลขบัตรประชาชน</Label>
-                    <p className="font-medium">{selectedPatient.idCard}</p>
-                  </div>
+                  {selectedPatient.idCard && !selectedPatient.idCard.toUpperCase().startsWith('NO_ID') && (
+                    <div>
+                      <Label className="text-muted-foreground">เลขบัตรประชาชน</Label>
+                      <p className="font-medium">{selectedPatient.idCard}</p>
+                    </div>
+                  )}
                   <div>
                     <Label className="text-muted-foreground">อายุ</Label>
                     <p className="font-medium">{selectedPatient.age} ปี</p>
@@ -1194,17 +1198,17 @@ export default function VisitManagement() {
 
             {/* Visit Form */}
             <Card className="shadow-card-custom border border-primary/20">
-              <CardHeader className="bg-primary/5 dark:bg-primary/10 border-b border-primary/20">
-                <CardTitle className="flex items-center gap-2">
-                  <FileText className="h-5 w-5 text-primary" />
+              <CardHeader className="bg-primary/5 dark:bg-primary/10 border-b border-primary/20 pb-3">
+                <CardTitle className="flex items-center gap-2 text-sm">
+                  <FileText className="h-4 w-4 text-primary" />
                   เปิด Visit ใหม่
                 </CardTitle>
-                <CardDescription>
+                <CardDescription className="text-xs">
                   กรอกข้อมูลสำหรับการเปิด visit
                 </CardDescription>
               </CardHeader>
-              <CardContent>
-                <form onSubmit={handleSubmit} className="space-y-6">
+              <CardContent className="pt-4">
+                <form onSubmit={handleSubmit} className="space-y-4">
                   {/* Visit Basic Info */}
                   <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
                     <div className="space-y-2">
@@ -1241,10 +1245,10 @@ export default function VisitManagement() {
 
                   {/* Patient Rights */}
                   <Card>
-                    <CardHeader className="bg-primary/5 dark:bg-primary/10 border-b border-primary/20">
-                      <CardTitle className="text-base">สิทธิการรักษา</CardTitle>
+                    <CardHeader className="bg-primary/5 dark:bg-primary/10 border-b border-primary/20 pb-2">
+                      <CardTitle className="text-sm">สิทธิการรักษา</CardTitle>
                     </CardHeader>
-                    <CardContent className="pt-6">
+                    <CardContent className="pt-3">
                       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                         <div className="space-y-2">
                           <Label htmlFor="patientRights">สิทธิ</Label>
@@ -1278,10 +1282,10 @@ export default function VisitManagement() {
 
                   {/* Department */}
                   <Card>
-                    <CardHeader className="bg-primary/5 dark:bg-primary/10 border-b border-primary/20">
-                      <CardTitle className="text-base">หน่วยงาน</CardTitle>
+                    <CardHeader className="bg-primary/5 dark:bg-primary/10 border-b border-primary/20 pb-2">
+                      <CardTitle className="text-sm">หน่วยงาน</CardTitle>
                     </CardHeader>
-                    <CardContent className="pt-6">
+                    <CardContent className="pt-3">
                       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                         <div className="space-y-2">
                           <Label htmlFor="department">หน่วยงาน</Label>

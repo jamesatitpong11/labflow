@@ -754,6 +754,13 @@ ${itemsList}
     }
     try {
       setIsLoading(true);
+      
+      // Show loading toast
+      toast({
+        title: "กำลังพิมพ์ใบเสร็จ",
+        description: "กรุณารอสักครู่...",
+      });
+      
       // Fix: Ensure patient fields are present
       const receiptData = {
         clinic: "LabFlow Clinic",
@@ -776,12 +783,22 @@ ${itemsList}
       };
 
       if (window.electronAPI && (window.electronAPI as any).printReceipt) {
-        await (window.electronAPI as any).printReceipt(selectedReceiptPrinter, receiptData);
+        // Add timeout wrapper to prevent hanging
+        const printPromise = (window.electronAPI as any).printReceipt(selectedReceiptPrinter, receiptData);
+        const timeoutPromise = new Promise((_, reject) => 
+          setTimeout(() => reject(new Error('การพิมพ์ใบเสร็จหมดเวลา')), 20000)
+        );
         
-        toast({
-          title: "พิมพ์ใบเสร็จสำเร็จ",
-          description: `พิมพ์ใบเสร็จด้วยเครื่องพิมพ์ ${selectedReceiptPrinter}`,
-        });
+        const result = await Promise.race([printPromise, timeoutPromise]);
+        
+        if (result && result.success) {
+          toast({
+            title: "พิมพ์ใบเสร็จสำเร็จ",
+            description: result.message || `พิมพ์ใบเสร็จด้วยเครื่องพิมพ์ ${selectedReceiptPrinter}`,
+          });
+        } else {
+          throw new Error(result?.message || 'การพิมพ์ใบเสร็จล้มเหลว');
+        }
       } else if (window.electronAPI && window.electronAPI.printDocument) {
         // Use printDocument as fallback with proper Thai encoding
         const receiptText = [
@@ -818,9 +835,22 @@ ${itemsList}
       }
     } catch (error) {
       console.error('Print failed:', error);
+      
+      // Determine error type and show appropriate message
+      let errorMessage = "ไม่สามารถพิมพ์ใบเสร็จได้";
+      let errorDescription = (error as Error).message;
+      
+      if (errorDescription.includes('หมดเวลา') || errorDescription.includes('Timeout')) {
+        errorMessage = "การพิมพ์หมดเวลา";
+        errorDescription = "การพิมพ์ใช้เวลานานเกินไป กรุณาตรวจสอบเครื่องพิมพ์และลองใหม่";
+      } else if (errorDescription.includes('ไม่พบเครื่องพิมพ์') || errorDescription.includes('printer')) {
+        errorMessage = "ปัญหาเครื่องพิมพ์";
+        errorDescription = "ไม่สามารถเชื่อมต่อเครื่องพิมพ์ได้ กรุณาตรวจสอบการเชื่อมต่อ";
+      }
+      
       toast({
-        title: "การพิมพ์ล้มเหลว",
-        description: "ไม่สามารถพิมพ์ใบเสร็จได้: " + (error as Error).message,
+        title: errorMessage,
+        description: errorDescription,
         variant: "destructive",
       });
     } finally {
@@ -1072,7 +1102,17 @@ ${itemsList}
       };
 
       if (window.electronAPI && (window.electronAPI as any).printReceipt) {
-        await (window.electronAPI as any).printReceipt(selectedReceiptPrinter, receiptData);
+        // Add timeout wrapper to prevent hanging
+        const printPromise = (window.electronAPI as any).printReceipt(selectedReceiptPrinter, receiptData);
+        const timeoutPromise = new Promise((_, reject) => 
+          setTimeout(() => reject(new Error('การพิมพ์ใบเสร็จหมดเวลา')), 20000)
+        );
+        
+        const result = await Promise.race([printPromise, timeoutPromise]);
+        
+        if (!result || !result.success) {
+          throw new Error(result?.message || 'การพิมพ์ใบเสร็จล้มเหลว');
+        }
       } else if (window.electronAPI && window.electronAPI.printDocument) {
         const printOptions = {
           printerName: selectedReceiptPrinter,
@@ -1107,7 +1147,13 @@ ${itemsList}
       }
     } catch (error) {
       console.error('Auto-print receipt error:', error);
-      // Don't show error toast for auto-print failure, as main transaction succeeded
+      
+      // Show a subtle warning for auto-print failure
+      toast({
+        title: "การพิมพ์อัตโนมัติล้มเหลว",
+        description: "บันทึกข้อมูลสำเร็จแล้ว แต่ไม่สามารถพิมพ์ใบเสร็จอัตโนมัติได้",
+        variant: "destructive",
+      });
     }
   };
 
@@ -1545,9 +1591,11 @@ ${itemsList}
                     className="w-full"
                   >
                     <Printer className="h-4 w-4 mr-2" />
-                    {receiptPrinterConfigured ? 
-                      `พิมพ์ใบเสร็จ (${configuredReceiptPrinter})` : 
-                      'ตั้งค่าเครื่องพิมพ์ก่อน'
+                    {isLoading ? 
+                      "กำลังพิมพ์..." : 
+                      receiptPrinterConfigured ? 
+                        `พิมพ์ใบเสร็จ (${configuredReceiptPrinter})` : 
+                        'ตั้งค่าเครื่องพิมพ์ก่อน'
                     }
                   </Button>
                 )}

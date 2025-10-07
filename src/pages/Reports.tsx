@@ -602,7 +602,7 @@ export default function Reports() {
                               <tr key={index} className="border-b border-border hover:bg-muted/30">
                                 <td className="p-3 text-sm font-medium">{visitor.referenceNumber || visitor.visitNumber || '-'}</td>
                                 <td className="p-3 text-sm">{visitor.ln || '-'}</td>
-                                <td className="p-3 text-sm">{visitor.idCard || '-'}</td>
+                                <td className="p-3 text-sm">{visitor.idCard && !visitor.idCard.startsWith('NO_ID') ? visitor.idCard : ''}</td>
                                 <td className="p-3 text-sm">{visitor.title || visitor.prefix || '-'}</td>
                                 <td className="p-3 text-sm">{visitor.firstName || '-'}</td>
                                 <td className="p-3 text-sm">{visitor.lastName || '-'}</td>

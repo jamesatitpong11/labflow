@@ -352,10 +352,12 @@ export default function MedicalRecords() {
                         <div>
                           <h3 className="text-xl font-bold text-foreground mb-2">{record.patientName}</h3>
                           <div className="flex items-center gap-6 text-sm text-muted-foreground">
-                            <span className="flex items-center gap-2 bg-muted/50 px-3 py-1 rounded-full">
-                              <User className="h-4 w-4" />
-                              บัตรประชาชน: {record.idCardNumber}
-                            </span>
+                            {record.idCardNumber && !record.idCardNumber.toUpperCase().startsWith('NO_ID') && (
+                              <span className="flex items-center gap-2 bg-muted/50 px-3 py-1 rounded-full">
+                                <User className="h-4 w-4" />
+                                บัตรประชาชน: {record.idCardNumber}
+                              </span>
+                            )}
                             <span className="flex items-center gap-2 bg-muted/50 px-3 py-1 rounded-full">
                               <Phone className="h-4 w-4" />
                               {record.phone}

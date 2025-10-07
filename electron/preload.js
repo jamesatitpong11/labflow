@@ -20,6 +20,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
   checkPrinterStatus: (printerName) => ipcRenderer.invoke('check-printer-status', printerName),
   printDocument: (options) => ipcRenderer.invoke('print-document', options),
   printSticker: (options) => ipcRenderer.invoke('print-sticker', options),
+  printReceipt: (printerName, receiptData) => ipcRenderer.invoke('print-receipt', printerName, receiptData),
 
   // Database operations
   testDatabaseConnection: () => ipcRenderer.invoke('test-database-connection'),
