@@ -3365,16 +3365,24 @@ app.post('/api/doctors', async (req, res) => {
       updatedAt: new Date()
     };
 
-    // Check if doctor with same name and license already exists
+    // Check if doctor with same name already exists
     const existingDoctor = await db.collection('doctors').findOne({
-      $or: [
-        { name: doctorData.name, licenseNumber: doctorData.licenseNumber },
-        { licenseNumber: doctorData.licenseNumber }
-      ]
+      name: doctorData.name
     });
 
     if (existingDoctor) {
-      return res.status(400).json({ error: 'มีแพทย์ที่ใช้ชื่อหรือเลขใบอนุญาตนี้แล้ว' });
+      return res.status(400).json({ error: 'มีแพทย์ที่ใช้ชื่อนี้แล้ว' });
+    }
+    
+    // Check if license number is provided and already exists
+    if (doctorData.licenseNumber && doctorData.licenseNumber.trim()) {
+      const existingLicense = await db.collection('doctors').findOne({
+        licenseNumber: doctorData.licenseNumber.trim()
+      });
+      
+      if (existingLicense) {
+        return res.status(400).json({ error: 'มีแพทย์ที่ใช้เลขใบอนุญาตนี้แล้ว' });
+      }
     }
 
     const result = await db.collection('doctors').insertOne(doctorData);

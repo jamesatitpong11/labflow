@@ -18,6 +18,8 @@ import {
   ChevronUp,
   TestTube,
   FileCheck,
+  IdCard,
+  CreditCard,
   AlertCircle,
   Download,
   FileImage,
@@ -341,118 +343,94 @@ export default function MedicalRecords() {
               </div>
             ) : (
             searchResults.map((record) => (
-              <Card key={record.id} className="shadow-card-custom hover:shadow-medical transition-all duration-300 border border-primary/20">
-                <CardContent className="p-6">
+              <Card key={record.id} className="shadow-sm hover:shadow-md transition-all duration-200 border border-border">
+                <CardContent className="p-4">
                   <div className="flex items-start justify-between">
                     <div className="flex-1 space-y-4">
-                      <div className="flex items-center gap-4">
-                        <div className="p-3 rounded-full bg-primary/20">
-                          <User className="h-6 w-6 text-primary" />
+                      <div className="flex items-center gap-3">
+                        <div className="p-2 rounded-full bg-primary/10">
+                          <User className="h-4 w-4 text-primary" />
                         </div>
                         <div>
-                          <h3 className="text-xl font-bold text-foreground mb-2">{record.patientName}</h3>
-                          <div className="flex items-center gap-6 text-sm text-muted-foreground">
-                            {record.idCardNumber && !record.idCardNumber.toUpperCase().startsWith('NO_ID') && (
-                              <span className="flex items-center gap-2 bg-muted/50 px-3 py-1 rounded-full">
-                                <User className="h-4 w-4" />
-                                บัตรประชาชน: {record.idCardNumber}
-                              </span>
-                            )}
-                            <span className="flex items-center gap-2 bg-muted/50 px-3 py-1 rounded-full">
-                              <Phone className="h-4 w-4" />
-                              {record.phone}
+                          <h3 className="text-lg font-semibold text-foreground mb-1">{record.patientName}</h3>
+                          <div className="flex items-center gap-4 text-xs">
+                            <span className="flex items-center gap-1">
+                              <IdCard className="h-3 w-3 text-muted-foreground" />
+                              <span className="text-muted-foreground">{record.patientId}</span>
+                            </span>
+                            <span className="flex items-center gap-1">
+                              <CreditCard className="h-3 w-3 text-muted-foreground" />
+                              <span className="text-muted-foreground">{record.idCardNumber}</span>
+                            </span>
+                            <span className="flex items-center gap-1">
+                              <Phone className="h-3 w-3 text-muted-foreground" />
+                              <span className="text-muted-foreground">{record.phone}</span>
                             </span>
                           </div>
                         </div>
                       </div>
 
-                      <div className="grid md:grid-cols-2 gap-6">
-                        <div className="space-y-2">
-                          <Label className="text-sm font-semibold text-foreground flex items-center gap-2">
-                            <TestTube className="h-4 w-4 text-primary" />
-                            การตรวจล่าสุด
-                          </Label>
-                          <div className="flex flex-wrap gap-2 mt-2">
-                            {record.recentTests.map((test, index) => (
-                              <Badge key={index} className="bg-primary/10 text-primary border-primary/20 hover:bg-primary/20 transition-colors">
-                                {test}
-                              </Badge>
-                            ))}
-                            {record.recentTests.length === 0 && (
-                              <span className="text-sm text-muted-foreground bg-muted/30 px-3 py-1 rounded-full">ยังไม่มีการตรวจ</span>
-                            )}
-                          </div>
+                      <div className="flex items-center gap-4 text-xs">
+                        <div className="flex items-center gap-1">
+                          <Calendar className="h-3 w-3 text-muted-foreground" />
+                          <span className="text-muted-foreground">ล่าสุด: {record.lastVisit}</span>
+                        </div>
+                        <div className="flex items-center gap-1">
+                          <FileCheck className="h-3 w-3 text-muted-foreground" />
+                          <span className="text-muted-foreground">รวม: </span>
+                          <span className="font-medium text-primary">{record.totalVisits} ครั้ง</span>
                         </div>
                       </div>
                     </div>
 
-                    <div className="bg-muted/20 p-4 rounded-lg border border-primary/10">
-                      <Label className="text-sm font-semibold text-foreground flex items-center gap-2 mb-3">
-                        <Calendar className="h-4 w-4 text-primary" />
-                        สถิติการมาใช้บริการ
-                      </Label>
-                      <div className="space-y-3">
-                        <div className="flex items-center gap-2 text-sm">
-                          <Clock className="h-4 w-4 text-primary" />
-                          <span className="text-muted-foreground">ครั้งล่าสุด:</span>
-                          <span className="font-medium text-foreground">{record.lastVisit}</span>
-                        </div>
-                        <div className="flex items-center gap-2 text-sm">
-                          <FileCheck className="h-4 w-4 text-primary" />
-                          <span className="text-muted-foreground">รวม:</span>
-                          <span className="font-bold text-primary">{record.totalVisits} ครั้ง</span>
-                        </div>
-                      </div>
-                    </div>
+                    <div className="flex items-center justify-between">{getStatusBadge(record.status)}</div>
                   </div>
 
-                  <Separator className="my-4" />
+                  <Separator className="my-3" />
 
                   <div className="flex justify-between items-center">
                     <Button 
-                      variant="outline" 
+                      variant="ghost" 
                       size="sm"
                       onClick={() => setExpandedRecord(expandedRecord === record.id ? null : record.id)}
-                      className="border-primary/30 text-primary hover:bg-primary/10 hover:border-primary transition-all duration-200"
+                      className="text-primary hover:bg-primary/5 h-8 px-3 text-sm"
                     >
-                      {expandedRecord === record.id ? <ChevronUp className="h-4 w-4 mr-2" /> : <ChevronDown className="h-4 w-4 mr-2" />}
-                      {expandedRecord === record.id ? 'ซ่อนประวัติ' : 'ดูประวัติการมาตรวจ'}
+                      {expandedRecord === record.id ? <ChevronUp className="h-3 w-3 mr-1" /> : <ChevronDown className="h-3 w-3 mr-1" />}
+                      {expandedRecord === record.id ? 'ซ่อน' : 'ดูประวัติ'}
                     </Button>
                   </div>
 
                   {/* Visit History - Expandable */}
                   {expandedRecord === record.id && (
-                    <div className="mt-6 space-y-4">
+                    <div className="mt-4 space-y-3">
                       <Separator />
-                      <div className="bg-gradient-to-r from-primary/5 to-primary/10 p-4 rounded-lg border border-primary/20">
-                        <h4 className="text-lg font-bold text-foreground flex items-center gap-3 mb-4">
-                          <div className="p-2 rounded-lg bg-primary/20">
-                            <FileText className="h-5 w-5 text-primary" />
-                          </div>
+                      <div className="bg-muted/30 p-3 rounded-lg">
+                        <h4 className="text-sm font-medium text-foreground flex items-center gap-2">
+                          <FileText className="h-4 w-4 text-primary" />
                           ประวัติการมาตรวจ ({record.visits.length} ครั้ง)
                         </h4>
                       </div>
                       
-                      <div className="space-y-4">
+                      <div className="space-y-3">
                         {record.visits.map((visit) => (
-                          <Card key={visit.visitId} className="shadow-card-custom border-l-4 border-l-primary">
-                            <CardContent className="p-5">
-                              <div className="flex items-start justify-between mb-4">
+                          <Card key={visit.visitId} className="border-l-2 border-l-primary">
+                            <CardContent className="p-3">
+                              <div className="flex items-start justify-between mb-3">
                                 <div>
-                                  <h5 className="font-bold text-foreground text-lg mb-2">
+                                  <h5 className="font-medium text-foreground text-sm mb-1">
                                     Visit #{visit.visitNumber}
                                   </h5>
-                                  <div className="flex items-center gap-6 text-sm">
-                                    <span className="flex items-center gap-2 bg-primary/10 px-3 py-1 rounded-full text-primary">
-                                      <Calendar className="h-4 w-4" />
+                                  <div className="flex items-center gap-3 text-xs">
+                                    <span className="flex items-center gap-1 text-muted-foreground">
+                                      <Calendar className="h-3 w-3" />
                                       {new Date(visit.visitDate).toLocaleDateString('th-TH')}
                                     </span>
-                                    <span className="flex items-center gap-2 bg-primary/10 px-3 py-1 rounded-full text-primary">
-                                      <Clock className="h-4 w-4" />
+                                    <span className="flex items-center gap-1 text-muted-foreground">
+                                      <Clock className="h-3 w-3" />
                                       {visit.visitTime}
                                     </span>
-                                    <span className="flex items-center gap-2 bg-primary/10 px-3 py-1 rounded-full text-primary">
-                                      <User className="h-4 w-4" />
+                                    <span className="flex items-center gap-1 text-muted-foreground">
+                                      <User className="h-3 w-3" />
                                       {visit.department}
                                     </span>
                                   </div>
@@ -461,20 +439,20 @@ export default function MedicalRecords() {
 
                               {/* Lab Orders */}
                               {visit.orders.length > 0 && (
-                                <div className="mb-6">
-                                  <h6 className="font-semibold text-foreground flex items-center gap-2 mb-3 text-base">
-                                    <TestTube className="h-5 w-5 text-primary" />
-                                    รายการตรวจ ({visit.orders.length} รายการ)
+                                <div className="mb-3">
+                                  <h6 className="font-medium text-foreground flex items-center gap-1 mb-2 text-xs">
+                                    <TestTube className="h-3 w-3 text-primary" />
+                                    รายการตรวจ ({visit.orders.length})
                                   </h6>
-                                  <div className="grid gap-3">
+                                  <div className="grid gap-2">
                                     {visit.orders.map((order) => (
-                                      <div key={order.orderId} className="flex items-center justify-between p-4 bg-muted/20 rounded-lg border border-primary/10 hover:bg-muted/30 transition-colors">
+                                      <div key={order.orderId} className="flex items-center justify-between p-2 bg-muted/20 rounded border">
                                         <div className="flex-1">
-                                          <span className="font-semibold text-foreground">{order.testName}</span>
-                                          <span className="text-sm text-muted-foreground ml-2 bg-muted/50 px-2 py-1 rounded">({order.testCode})</span>
+                                          <span className="font-medium text-foreground text-xs">{order.testName}</span>
+                                          <span className="text-xs text-muted-foreground ml-1">({order.testCode})</span>
                                         </div>
-                                        <div className="flex items-center gap-3">
-                                          <span className="text-lg font-bold text-primary">฿{order.price.toLocaleString()}</span>
+                                        <div className="flex items-center gap-2">
+                                          <span className="text-sm font-medium text-primary">฿{order.price.toLocaleString()}</span>
                                           {getOrderStatusBadge(order.status)}
                                         </div>
                                       </div>
@@ -485,61 +463,27 @@ export default function MedicalRecords() {
 
                               {/* Test Results */}
                               {visit.results.length > 0 && (
-                                <div>
-                                  <h6 className="font-semibold text-foreground flex items-center gap-2 mb-3 text-base">
-                                    <FileCheck className="h-5 w-5 text-success" />
-                                    ผลการตรวจ ({visit.results.length} รายการ)
+                                <div className="mb-3">
+                                  <h6 className="font-medium text-foreground flex items-center gap-1 mb-2 text-xs">
+                                    <FileCheck className="h-3 w-3 text-primary" />
+                                    ผลการตรวจ ({visit.results.length})
                                   </h6>
-                                  <div className="grid gap-3">
+                                  <div className="grid gap-2">
                                     {visit.results.map((result) => (
-                                      <div key={result.resultId} className="flex items-center justify-between p-4 bg-success/5 rounded-lg border border-success/20 hover:bg-success/10 transition-colors">
+                                      <div key={result.resultId} className="flex items-center justify-between p-2 bg-muted/20 rounded border">
                                         <div className="flex-1">
-                                          <span className="font-semibold text-foreground">{result.testName}</span>
-                                          <div className="text-sm text-muted-foreground mt-2 space-y-1">
-                                            <div className="flex items-center gap-2">
-                                              <span>ผลตรวจ:</span>
-                                              <span className="font-bold text-foreground bg-muted/50 px-2 py-1 rounded">{result.result}</span>
-                                            </div>
-                                            {result.normalRange && (
-                                              <div className="flex items-center gap-2">
-                                                <span>ค่าปกติ:</span>
-                                                <span className="text-muted-foreground">{result.normalRange}</span>
-                                              </div>
-                                            )}
+                                          <span className="font-medium text-foreground text-xs">{result.testName}</span>
+                                          <div className="text-sm font-medium text-foreground mt-1">
+                                            {result.result}
                                           </div>
-                                          
-                                          {/* Attached Files */}
-                                          {result.attachedFiles && result.attachedFiles.length > 0 && (
-                                            <div className="mt-3 p-3 bg-muted/20 rounded-lg border border-muted/30">
-                                              <div className="flex items-center gap-2 text-sm font-medium text-foreground mb-2">
-                                                <Paperclip className="h-4 w-4 text-primary" />
-                                                ไฟล์แนบ ({result.attachedFiles.length} ไฟล์)
-                                              </div>
-                                              <div className="flex flex-wrap gap-2">
-                                                {result.attachedFiles.map((file, fileIndex) => (
-                                                  <div key={fileIndex} className="flex gap-2">
-                                                    <FileViewer file={file} />
-                                                    <Button
-                                                      variant="outline"
-                                                      size="sm"
-                                                      className="h-8 px-3 text-xs border-primary/30 text-primary hover:bg-primary/10"
-                                                      onClick={() => downloadFile(file)}
-                                                    >
-                                                      <Download className="h-3 w-3 mr-1" />
-                                                      ดาวน์โหลด
-                                                    </Button>
-                                                  </div>
-                                                ))}
-                                              </div>
-                                            </div>
+                                          {result.normalRange && (
+                                            <span className="text-xs text-muted-foreground">({result.normalRange})</span>
                                           )}
                                         </div>
-                                        <div className="flex items-center gap-3">
+                                        <div className="flex items-center gap-2">
                                           {getResultStatusBadge(result.status)}
                                           {result.status === 'abnormal' && (
-                                            <div className="p-1 rounded-full bg-destructive/20">
-                                              <AlertCircle className="h-5 w-5 text-destructive" />
-                                            </div>
+                                            <AlertCircle className="h-3 w-3 text-destructive" />
                                           )}
                                         </div>
                                       </div>
@@ -550,9 +494,9 @@ export default function MedicalRecords() {
 
                               {/* No orders or results */}
                               {visit.orders.length === 0 && visit.results.length === 0 && (
-                                <div className="text-center py-4 text-muted-foreground">
-                                  <FileText className="h-8 w-8 mx-auto mb-2 opacity-50" />
-                                  <p className="text-sm">ไม่มีข้อมูลการตรวจในครั้งนี้</p>
+                                <div className="text-center py-3 text-muted-foreground">
+                                  <FileText className="h-6 w-6 mx-auto mb-1 opacity-50" />
+                                  <p className="text-xs">ไม่มีข้อมูลการตรวจในครั้งนี้</p>
                                 </div>
                               )}
                             </CardContent>
@@ -571,31 +515,21 @@ export default function MedicalRecords() {
 
       {/* Initial State - ยังไม่ได้ค้นหา */}
       {!hasSearched && (
-        <div className="text-center py-12">
-          <div className="max-w-md mx-auto">
-            <div className="p-6 rounded-full bg-primary/10 w-24 h-24 mx-auto mb-6 flex items-center justify-center">
-              <Search className="h-12 w-12 text-primary" />
+        <div className="text-center py-8">
+          <div className="max-w-sm mx-auto">
+            <div className="p-4 rounded-full bg-primary/10 w-16 h-16 mx-auto mb-4 flex items-center justify-center">
+              <Search className="h-8 w-8 text-primary" />
             </div>
-            <h3 className="text-xl font-semibold text-foreground mb-3">
+            <h3 className="text-lg font-medium text-foreground mb-2">
               ค้นหาเวชระเบียนผู้ป่วย
             </h3>
-            <p className="text-muted-foreground mb-6">
-              กรอกข้อมูลในช่องค้นหาแล้วกดปุ่ม "ค้นหา" เพื่อค้นหาเวชระเบียนของผู้ป่วย<br />
-              หรือกดปุ่ม "แสดงทั้งหมด" เพื่อดูเวชระเบียนทั้งหมดในระบบ
+            <p className="text-sm text-muted-foreground mb-4">
+              กรอกข้อมูลในช่องค้นหาแล้วกดปุ่ม "ค้นหา" หรือกดปุ่ม "แสดงทั้งหมด"
             </p>
-            <div className="bg-muted/20 p-4 rounded-lg border border-primary/10">
-              <p className="text-sm text-muted-foreground">
-                💡 <strong>คำแนะนำ:</strong> ค้นหาได้ด้วยชื่อ-นามสกุล เลขบัตรประชาชน รหัสคนไข้ หรือเบอร์โทรศัพท์
+            <div className="bg-muted/20 p-3 rounded-lg border border-primary/10">
+              <p className="text-xs text-muted-foreground">
+                💡 ค้นหาได้ด้วยชื่อ-นามสกุล เลขบัตรประชาชน รหัสคนไข้ หรือเบอร์โทรศัพท์
               </p>
-            </div>
-            <div className="mt-6 space-y-2">
-              <p className="text-sm font-medium text-foreground">ตัวอย่างการค้นหา:</p>
-              <div className="flex flex-wrap gap-2 justify-center">
-                <Badge variant="outline" className="text-xs">สมชาย ใจดี</Badge>
-                <Badge variant="outline" className="text-xs">1234567890123</Badge>
-                <Badge variant="outline" className="text-xs">P001</Badge>
-                <Badge variant="outline" className="text-xs">081-234-5678</Badge>
-              </div>
             </div>
           </div>
         </div>
