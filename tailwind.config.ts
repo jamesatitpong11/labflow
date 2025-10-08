@@ -12,9 +12,9 @@ export default {
 	theme: {
 		container: {
 			center: true,
-			padding: '2rem',
+			padding: '1rem',
 			screens: {
-				'2xl': '1400px'
+				'2xl': '1200px'
 			}
 		},
 		extend: {
@@ -23,16 +23,16 @@ export default {
 				'itim': ['Itim', 'sans-serif'],
 			},
 			fontSize: {
-				'xs': ['16px', '1.4'],
-				'sm': ['18px', '1.5'],
-				'base': ['20px', '1.6'],
-				'lg': ['22px', '1.6'],
-				'xl': ['24px', '1.7'],
-				'2xl': ['28px', '1.7'],
-				'3xl': ['34px', '1.8'],
-				'4xl': ['40px', '1.8'],
-				'5xl': ['52px', '1.9'],
-				'6xl': ['64px', '1.9'],
+				'xs': ['12px', '1.4'],
+				'sm': ['14px', '1.5'],
+				'base': ['16px', '1.6'],
+				'lg': ['18px', '1.6'],
+				'xl': ['20px', '1.7'],
+				'2xl': ['22px', '1.7'],
+				'3xl': ['26px', '1.8'],
+				'4xl': ['30px', '1.8'],
+				'5xl': ['36px', '1.9'],
+				'6xl': ['42px', '1.9'],
 			},
 			colors: {
 				border: 'hsl(var(--border))',

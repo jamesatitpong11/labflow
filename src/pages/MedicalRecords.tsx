@@ -79,143 +79,84 @@ interface AttachedFile {
 
 export default function MedicalRecords() {
   const [searchTerm, setSearchTerm] = useState("");
-  const [records, setRecords] = useState<MedicalRecord[]>([]);
-  const [filteredRecords, setFilteredRecords] = useState<MedicalRecord[]>([]);
-  const [isLoading, setIsLoading] = useState(false);
+  const [searchResults, setSearchResults] = useState<MedicalRecord[]>([]);
+  const [isSearching, setIsSearching] = useState(false);
   const [expandedRecord, setExpandedRecord] = useState<string | null>(null);
+  const [hasSearched, setHasSearched] = useState(false);
   const { toast } = useToast();
 
 
-  // Load medical records from API
-  const loadMedicalRecords = async () => {
-    setIsLoading(true);
+  // Search medical records from API based on search term - OPTIMIZED
+  const searchMedicalRecords = async (searchQuery: string) => {
+    if (!searchQuery.trim()) {
+      setSearchResults([]);
+      setHasSearched(false);
+      return;
+    }
+
+    setIsSearching(true);
+    setHasSearched(true);
+    
     try {
-      // Get all visits, orders, and results
-      const [visits, orders, results] = await Promise.all([
-        apiService.getVisits(),
-        apiService.getOrders(),
-        apiService.getResults()
-      ]);
-      
-      // Group visits by patient and create medical records
-      const patientMap = new Map<string, MedicalRecord>();
-      
-      visits.forEach((visit: VisitData) => {
-        const patientKey = visit.patientName || visit.patientId || 'unknown';
-        
-        // Get orders for this visit
-        const visitOrders = orders.filter((order: any) => order.visitId === visit._id);
-        const orderDetails: OrderDetail[] = visitOrders.flatMap((order: any) => 
-          order.labOrders?.map((labOrder: any) => ({
-            orderId: order._id || '',
-            testName: labOrder.testName || 'ไม่ระบุ',
-            testCode: labOrder.code || '',
-            price: labOrder.price || 0,
-            status: order.status || 'pending'
-          })) || []
-        );
-        
-        // Get results for this visit's orders
-        const visitResults = results.filter((result: any) => 
-          visitOrders.some((order: any) => order._id === result.orderId)
-        );
-        const resultDetails: ResultDetail[] = visitResults.flatMap((result: any) =>
-          result.testResults?.map((testResult: any) => ({
-            resultId: result._id || '',
-            testName: testResult.testName || 'ไม่ระบุ',
-            result: testResult.result || 'รอผล',
-            normalRange: testResult.normalRange || '',
-            status: testResult.status || 'pending',
-            attachedFiles: result.attachedFiles?.map((file: any) => ({
-              fileName: file.fileName || 'ไฟล์แนบ',
-              fileData: file.fileData || '',
-              fileType: file.fileType || 'application/octet-stream',
-              uploadDate: file.uploadDate || result.createdAt || ''
-            })) || []
-          })) || []
-        );
-        
-        const visitDetail: VisitDetail = {
-          visitId: visit._id || '',
-          visitNumber: visit.visitNumber || '',
-          visitDate: visit.visitDate || '',
-          visitTime: visit.visitTime || '',
-          department: visit.department || 'ไม่ระบุ',
-          orders: orderDetails,
-          results: resultDetails
-        };
-        
-        if (patientMap.has(patientKey)) {
-          const existing = patientMap.get(patientKey)!;
-          existing.totalVisits += 1;
-          existing.visits.push(visitDetail);
-          
-          // Update last visit if this visit is more recent
-          const visitDate = new Date(visit.visitDate || visit.createdAt || '');
-          const lastVisitDate = new Date(existing.lastVisit);
-          if (visitDate > lastVisitDate) {
-            existing.lastVisit = visitDate.toLocaleDateString('th-TH');
-          }
-          
-          // Update recent tests
-          const testNames = orderDetails.map(order => order.testName);
-          existing.recentTests = [...new Set([...existing.recentTests, ...testNames])].slice(0, 5);
-        } else {
-          const record: MedicalRecord = {
-            id: visit._id || `MR${Date.now()}`,
-            patientName: visit.patientName || 'ไม่ระบุชื่อ',
-            patientId: visit.patientId || 'N/A',
-            idCardNumber: visit.patientData?.idCard || 'ไม่ระบุ',
-            phone: visit.patientData?.phoneNumber || 'ไม่ระบุ',
-            address: visit.patientData?.address || 'ไม่ระบุที่อยู่',
-            lastVisit: new Date(visit.visitDate || visit.createdAt || '').toLocaleDateString('th-TH'),
-            totalVisits: 1,
-            recentTests: orderDetails.map(order => order.testName).slice(0, 5),
-            status: 'active',
-            visits: [visitDetail]
-          };
-          patientMap.set(patientKey, record);
-        }
-      });
-      
-      const medicalRecords = Array.from(patientMap.values());
-      // Sort visits by date (newest first)
-      medicalRecords.forEach(record => {
-        record.visits.sort((a, b) => new Date(b.visitDate).getTime() - new Date(a.visitDate).getTime());
-      });
-      
-      setRecords(medicalRecords);
-      setFilteredRecords(medicalRecords);
+      // Use optimized API endpoint that does server-side filtering and joining
+      const medicalRecords = await apiService.searchMedicalRecords(searchQuery);
+      setSearchResults(medicalRecords);
       
     } catch (error) {
-      console.error('Error loading medical records:', error);
+      console.error('Error searching medical records:', error);
       showErrorToast({
         title: "เกิดข้อผิดพลาด",
-        description: "ไม่สามารถโหลดข้อมูลเวชระเบียนได้",
+        description: "ไม่สามารถค้นหาข้อมูลเวชระเบียนได้",
       });
     } finally {
-      setIsLoading(false);
+      setIsSearching(false);
     }
   };
 
-  useEffect(() => {
-    loadMedicalRecords();
-  }, []);
+  // ลบ useEffect ออกเพื่อไม่ให้โหลดข้อมูลทันทีเมื่อเปิดหน้า
+  // useEffect(() => {
+  //   loadMedicalRecords();
+  // }, []);
 
-  const handleSearch = (value: string) => {
-    setSearchTerm(value);
-    if (!value.trim()) {
-      setFilteredRecords(records);
-      return;
+  // Handle search button click
+  const handleSearchClick = () => {
+    searchMedicalRecords(searchTerm);
+  };
+
+  // Handle Enter key press in search input
+  const handleKeyPress = (e: React.KeyboardEvent) => {
+    if (e.key === 'Enter') {
+      handleSearchClick();
     }
+  };
+
+  // Clear search results
+  const clearSearch = () => {
+    setSearchTerm("");
+    setSearchResults([]);
+    setHasSearched(false);
+  };
+
+  // Load all medical records - OPTIMIZED
+  const loadAllRecords = async () => {
+    setIsSearching(true);
+    setHasSearched(true);
+    setSearchTerm(""); // Clear search term when showing all
     
-    const filtered = records.filter(record =>
-      (record.patientName && record.patientName.toLowerCase().includes(value.toLowerCase())) ||
-      (record.patientId && record.patientId.toLowerCase().includes(value.toLowerCase())) ||
-      (record.idCardNumber && record.idCardNumber.includes(value)) ||
-      (record.phone && record.phone.includes(value))
-    );
-    setFilteredRecords(filtered);
+    try {
+      // Use optimized API endpoint that does server-side processing
+      const medicalRecords = await apiService.getAllMedicalRecords();
+      setSearchResults(medicalRecords);
+      
+    } catch (error) {
+      console.error('Error loading all medical records:', error);
+      showErrorToast({
+        title: "เกิดข้อผิดพลาด",
+        description: "ไม่สามารถโหลดข้อมูลเวชระเบียนทั้งหมดได้",
+      });
+    } finally {
+      setIsSearching(false);
+    }
   };
 
 
@@ -308,39 +249,98 @@ export default function MedicalRecords() {
                   id="search"
                   placeholder="พิมพ์ชื่อ เลขบัตรประชาชน รหัสคนไข้ หรือเบอร์โทรศัพท์"
                   value={searchTerm}
-                  onChange={(e) => handleSearch(e.target.value)}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  onKeyPress={handleKeyPress}
                   className="pl-12 h-12 text-base border-2 border-border/50 focus:border-primary transition-colors"
                 />
               </div>
+            </div>
+            <div className="flex items-end gap-2">
+              <Button 
+                onClick={handleSearchClick}
+                disabled={isSearching || !searchTerm.trim()}
+                className="h-12 px-6 bg-primary hover:bg-primary/90 text-primary-foreground"
+              >
+                {isSearching && searchTerm ? (
+                  <>
+                    <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
+                    กำลังค้นหา...
+                  </>
+                ) : (
+                  <>
+                    <Search className="h-4 w-4 mr-2" />
+                    ค้นหา
+                  </>
+                )}
+              </Button>
+              <Button 
+                variant="outline"
+                onClick={loadAllRecords}
+                disabled={isSearching}
+                className="h-12 px-6 border-primary/30 text-primary hover:bg-primary/10"
+              >
+                {isSearching && !searchTerm ? (
+                  <>
+                    <div className="animate-spin rounded-full h-4 w-4 border-primary mr-2"></div>
+                    กำลังโหลด...
+                  </>
+                ) : (
+                  <>
+                    <FileText className="h-4 w-4 mr-2" />
+                    แสดงทั้งหมด
+                  </>
+                )}
+              </Button>
+              {hasSearched && (
+                <Button 
+                  variant="outline"
+                  onClick={clearSearch}
+                  className="h-12 px-4 border-primary/30 text-primary hover:bg-primary/10"
+                >
+                  ล้างผลลัพธ์
+                </Button>
+              )}
             </div>
           </div>
         </CardContent>
       </Card>
 
       {/* Results */}
-      <div className="space-y-6">
-        <div className="flex items-center justify-between">
-          <h2 className="text-xl font-semibold text-foreground flex items-center gap-2">
-            <div className="w-1 h-6 bg-primary rounded-full"></div>
-            ผลการค้นหา ({filteredRecords.length} รายการ)
-          </h2>
-        </div>
+      {hasSearched && (
+        <div className="space-y-6">
+          <div className="flex items-center justify-between">
+            <h2 className="text-xl font-semibold text-foreground flex items-center gap-2">
+              <div className="w-1 h-6 bg-primary rounded-full"></div>
+              {searchTerm ? `ผลการค้นหา "${searchTerm}" (${searchResults.length} รายการ)` : `เวชระเบียนทั้งหมด (${searchResults.length} รายการ)`}
+            </h2>
+          </div>
 
-        <div className="space-y-4">
-          {isLoading ? (
-            <div className="text-center py-8">
-              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto"></div>
-              <p className="mt-2 text-muted-foreground">กำลังโหลดข้อมูล...</p>
-            </div>
-          ) : filteredRecords.length === 0 ? (
-            <div className="text-center py-8">
-              <FileText className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
-              <p className="text-muted-foreground">
-                {searchTerm ? 'ไม่พบข้อมูลที่ค้นหา' : 'ยังไม่มีข้อมูลเวชระเบียน'}
-              </p>
-            </div>
-          ) : (
-            filteredRecords.map((record) => (
+          <div className="space-y-4">
+            {isSearching ? (
+              <div className="text-center py-8">
+                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto"></div>
+                <p className="mt-2 text-muted-foreground">
+                  {searchTerm ? 'กำลังค้นหาข้อมูล...' : 'กำลังโหลดข้อมูลทั้งหมด...'}
+                </p>
+              </div>
+            ) : searchResults.length === 0 ? (
+              <div className="text-center py-8">
+                <FileText className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
+                {searchTerm ? (
+                  <>
+                    <p className="text-muted-foreground">
+                      ไม่พบข้อมูลที่ค้นหา "{searchTerm}"
+                    </p>
+                    <p className="text-sm text-muted-foreground mt-2">
+                      ลองใช้คำค้นหาอื่น เช่น ชื่อ-นามสกุล เลขบัตรประชาชน หรือเบอร์โทรศัพท์
+                    </p>
+                  </>
+                ) : (
+                  <p className="text-muted-foreground">ยังไม่มีข้อมูลเวชระเบียนในระบบ</p>
+                )}
+              </div>
+            ) : (
+            searchResults.map((record) => (
               <Card key={record.id} className="shadow-card-custom hover:shadow-medical transition-all duration-300 border border-primary/20">
                 <CardContent className="p-6">
                   <div className="flex items-start justify-between">
@@ -564,9 +564,42 @@ export default function MedicalRecords() {
                 </CardContent>
               </Card>
             ))
-          )}
+            )}
+          </div>
         </div>
-      </div>
+      )}
+
+      {/* Initial State - ยังไม่ได้ค้นหา */}
+      {!hasSearched && (
+        <div className="text-center py-12">
+          <div className="max-w-md mx-auto">
+            <div className="p-6 rounded-full bg-primary/10 w-24 h-24 mx-auto mb-6 flex items-center justify-center">
+              <Search className="h-12 w-12 text-primary" />
+            </div>
+            <h3 className="text-xl font-semibold text-foreground mb-3">
+              ค้นหาเวชระเบียนผู้ป่วย
+            </h3>
+            <p className="text-muted-foreground mb-6">
+              กรอกข้อมูลในช่องค้นหาแล้วกดปุ่ม "ค้นหา" เพื่อค้นหาเวชระเบียนของผู้ป่วย<br />
+              หรือกดปุ่ม "แสดงทั้งหมด" เพื่อดูเวชระเบียนทั้งหมดในระบบ
+            </p>
+            <div className="bg-muted/20 p-4 rounded-lg border border-primary/10">
+              <p className="text-sm text-muted-foreground">
+                💡 <strong>คำแนะนำ:</strong> ค้นหาได้ด้วยชื่อ-นามสกุล เลขบัตรประชาชน รหัสคนไข้ หรือเบอร์โทรศัพท์
+              </p>
+            </div>
+            <div className="mt-6 space-y-2">
+              <p className="text-sm font-medium text-foreground">ตัวอย่างการค้นหา:</p>
+              <div className="flex flex-wrap gap-2 justify-center">
+                <Badge variant="outline" className="text-xs">สมชาย ใจดี</Badge>
+                <Badge variant="outline" className="text-xs">1234567890123</Badge>
+                <Badge variant="outline" className="text-xs">P001</Badge>
+                <Badge variant="outline" className="text-xs">081-234-5678</Badge>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

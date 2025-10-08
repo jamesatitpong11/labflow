@@ -1022,8 +1022,8 @@ export default function VisitManagement() {
       <div className="w-full lg:w-72 space-y-3 sm:space-y-4">
         {/* Printer Connection Test removed - use Settings page instead */}
         
-        <Card className="shadow-card-custom border border-border/50 bg-card">
-          <CardHeader className="bg-gradient-to-r from-primary/5 to-primary/10 dark:from-primary/10 dark:to-primary/20 border-b border-border/20 pb-3">
+        <Card className="shadow-card-custom border border-border/50 bg-red-100">
+          <CardHeader className="bg-red-to-r from-primary/5 to-primary/10 dark:from-primary/10 dark:to-primary/20 border-b border-border/20 pb-3">
             <CardTitle className="flex items-center gap-2 text-foreground text-sm">
               <Search className="h-4 w-4 text-primary" />
               ค้นหาคนไข้
@@ -1580,7 +1580,7 @@ export default function VisitManagement() {
 
       {/* Visit History Sidebar - Responsive layout */}
       <div className="w-full lg:w-80 space-y-3 sm:space-y-4">
-        <Card className="shadow-card-custom border border-border/50 bg-card">
+        <Card className="shadow-card-custom border border-border/50 bg-green-50">
           <CardHeader className="bg-gradient-to-r from-primary/5 to-primary/10 dark:from-primary/10 dark:to-primary/20 border-b border-border/20">
             <CardTitle className="flex items-center gap-2 text-foreground">
               <Clock className="h-5 w-5 text-primary" />

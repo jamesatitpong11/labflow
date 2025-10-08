@@ -748,6 +748,15 @@ class ApiService {
       body: JSON.stringify({ name, licenseNumber }),
     });
   }
+
+  // Medical Records API - Optimized search
+  async searchMedicalRecords(query: string): Promise<any[]> {
+    return this.request<any[]>(`/medical-records/search?q=${encodeURIComponent(query)}`);
+  }
+
+  async getAllMedicalRecords(): Promise<any[]> {
+    return this.request<any[]>('/medical-records/all');
+  }
 }
 
 export interface VisitData {
