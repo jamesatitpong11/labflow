@@ -2,25 +2,38 @@
 // Check if running in Electron environment - make this dynamic
 // Production build - debug logs removed
 
-// Get API base URL - supports both development and production
+// Global variable to track backend availability
+let backendStatus: 'unknown' | 'local' | 'production' = 'unknown';
+
+// Get API base URL with smart fallback
 const getApiBaseUrl = () => {
-  // Check if we're in development environment
+  // If we already know the status, use it
+  if (backendStatus === 'local') {
+    return 'http://localhost:3001/api';
+  } else if (backendStatus === 'production') {
+    const prodBaseUrl = import.meta.env.VITE_API_URL || 
+                        import.meta.env.VITE_BACKEND_URL || 
+                        'https://labflow-clinic-backend-skzx.onrender.com';
+    return `${prodBaseUrl}/api`;
+  }
+
+  // First time - check if we're in development environment
   const isDevelopment = window.location.hostname === 'localhost' || 
                        window.location.hostname === '127.0.0.1' ||
                        import.meta.env.DEV;
   
   if (isDevelopment) {
-    const devBaseUrl = 'http://localhost:3001';
-    console.log('Development API Base URL:', devBaseUrl);
-    return `${devBaseUrl}/api`;
+    // Try local first, but will fallback to production if connection fails
+    return 'http://localhost:3001/api';
+  } else {
+    // Production environment
+    const prodBaseUrl = import.meta.env.VITE_API_URL || 
+                        import.meta.env.VITE_BACKEND_URL || 
+                        'https://labflow-clinic-backend-skzx.onrender.com';
+    backendStatus = 'production';
+    console.log('Production API Base URL:', prodBaseUrl);
+    return `${prodBaseUrl}/api`;
   }
-  
-  // Production environment - use environment variable or fallback
-  const prodBaseUrl = import.meta.env.VITE_API_URL || 
-                      import.meta.env.VITE_BACKEND_URL || 
-                      'https://labflow-clinic-backend-skzx.onrender.com';
-  console.log('Production API Base URL:', prodBaseUrl);
-  return `${prodBaseUrl}/api`;
 };
 
 // Dynamic API base URL that updates when window.ELECTRON_API_BASE_URL changes
@@ -200,9 +213,45 @@ class ApiService {
         throw new Error(errorData.error || `HTTP error! status: ${response.status}`);
       }
       
+      // Mark backend as working
+      if (url.includes('localhost:3001')) {
+        backendStatus = 'local';
+        console.log('✅ Local backend is working');
+      } else {
+        backendStatus = 'production';
+      }
+      
       return await response.json();
     } catch (error) {
       console.error(`API request failed: ${endpoint}`, error);
+      
+      // If local backend failed and we haven't tried production yet
+      if (url.includes('localhost:3001') && backendStatus === 'unknown') {
+        console.log('🔄 Local backend failed, trying production...');
+        backendStatus = 'production';
+        
+        // Retry with production URL
+        const prodBaseUrl = import.meta.env.VITE_API_URL || 
+                           import.meta.env.VITE_BACKEND_URL || 
+                           'https://labflow-clinic-backend-skzx.onrender.com';
+        const prodUrl = `${prodBaseUrl}/api${endpoint}`;
+        
+        try {
+          const prodResponse = await fetch(prodUrl, config);
+          
+          if (!prodResponse.ok) {
+            const errorData = await prodResponse.json().catch(() => ({}));
+            throw new Error(errorData.error || `HTTP error! status: ${prodResponse.status}`);
+          }
+          
+          console.log('✅ Production backend is working');
+          return await prodResponse.json();
+        } catch (prodError) {
+          console.error('❌ Both local and production backends failed:', prodError);
+          throw prodError;
+        }
+      }
+      
       throw error;
     }
   }
