@@ -6,8 +6,25 @@ git add .
 git commit -m "Update backend with latest changes"
 git push origin main
 
+CBC, ABO, BUN, Creatinine, AST, ALT, ALP, eGFR, FBS, HDL, LDL, 
+Triglyceride, Cholesterol, Uric acid, AFP, Anti HAV, Anti HCV, 
+Anti HBs, Anti HIV, CA125, CA15-3, CA19-9, CEA, FT3, FT4, 
+HBs Ag, PSA, TSH, Flu A/B, RSV, Covid-19, Dengue, Leptospira, 
+Methamphetamine, UPT, Albumin, Amylase, Calcium, Cholinesterase, 
+CK-MB, CPK, Cystatin-C, Bilirubin, Direct, GGT, Globulin, 
+HbA1C, Homocysteine, hs-CRP, CRP, LDH, Magnesium, Phosphorus, 
+Total Bilirubin, Total Protein, Microalbumin, Beta HCG, NSE, 
+VDRL, Progesterone, Rheumatoid Factor, D-dimer, Hb typing, 
+HPV DNA, FIT Test, UA, Rh, PT, PTT, INR, DTX, Stool Culture, 
+Chest X-ray, Stool, FSH, Prolactin, Testosterone, 
+Pharmacogenetics, Vitamin D
 
-
+ย้าย HCV ไปคลินิก
+NSE ไม่มี
+PT ไม่มี
+PTT ไม่มี
+Anti HIV ไม่แสดงหน้ารายงาน
+VDRL ไม่แสเงหน้ารายงาน
 
 
 เปิดโปรแกรม

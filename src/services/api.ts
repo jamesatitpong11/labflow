@@ -2,25 +2,25 @@
 // Check if running in Electron environment - make this dynamic
 // Production build - debug logs removed
 
-// Get API base URL - force localhost for development
+// Get API base URL - supports both development and production
 const getApiBaseUrl = () => {
-  // Force localhost:3001 for all development scenarios
-  const devBaseUrl = 'http://localhost:3001';
-  console.log('Forced Development API Base URL:', devBaseUrl);
-  return `${devBaseUrl}/api`;
+  // Check if we're in development environment
+  const isDevelopment = window.location.hostname === 'localhost' || 
+                       window.location.hostname === '127.0.0.1' ||
+                       import.meta.env.DEV;
   
-  // Commented out production logic for now
-  // const isDevelopment = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
-  // if (isDevelopment) {
-  //   const devBaseUrl = 'http://localhost:8080';
-  //   console.log('Development API Base URL:', devBaseUrl);
-  //   return `${devBaseUrl}/api`;
-  // }
-  // const apiUrl = import.meta.env.VITE_API_URL || 'https://labflow-clinic-backend-skzx.onrender.com';
-  // if (apiUrl.startsWith('http')) {
-  //   return `${apiUrl}/api`;
-  // }
-  // return apiUrl;
+  if (isDevelopment) {
+    const devBaseUrl = 'http://localhost:3001';
+    console.log('Development API Base URL:', devBaseUrl);
+    return `${devBaseUrl}/api`;
+  }
+  
+  // Production environment - use environment variable or fallback
+  const prodBaseUrl = import.meta.env.VITE_API_URL || 
+                      import.meta.env.VITE_BACKEND_URL || 
+                      'https://labflow-clinic-backend-skzx.onrender.com';
+  console.log('Production API Base URL:', prodBaseUrl);
+  return `${prodBaseUrl}/api`;
 };
 
 // Dynamic API base URL that updates when window.ELECTRON_API_BASE_URL changes
