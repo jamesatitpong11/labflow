@@ -1,34 +1,33 @@
 // API service for LabFlow Clinic
 // Check if running in Electron environment - make this dynamic
-const isElectron = () => typeof window !== 'undefined' && window.electronAPI;
-
 // Production build - debug logs removed
 
-// Get API base URL - use environment variables or defaults
+// Get API base URL - force localhost for development
 const getApiBaseUrl = () => {
-  const electronEnv = isElectron();
+  // Force localhost:3001 for all development scenarios
+  const devBaseUrl = 'http://localhost:3001';
+  console.log('Forced Development API Base URL:', devBaseUrl);
+  return `${devBaseUrl}/api`;
   
-  if (electronEnv) {
-    // Use correct backend port 3001 for Electron
-    const electronBaseUrl = 'http://localhost:3001';
-    console.log('Electron API Base URL:', electronBaseUrl);
-    return `${electronBaseUrl}/api`;
-  }
-  
-  // For web deployment, use environment variable or fallback
-  const apiUrl = import.meta.env.VITE_API_URL || 'https://labflow-clinic-backend-skzx.onrender.com';
-  
-  // If it's a full URL, append /api, otherwise use as is
-  if (apiUrl.startsWith('http')) {
-    return `${apiUrl}/api`;
-  }
-  return apiUrl; // Use proxy for development
+  // Commented out production logic for now
+  // const isDevelopment = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
+  // if (isDevelopment) {
+  //   const devBaseUrl = 'http://localhost:8080';
+  //   console.log('Development API Base URL:', devBaseUrl);
+  //   return `${devBaseUrl}/api`;
+  // }
+  // const apiUrl = import.meta.env.VITE_API_URL || 'https://labflow-clinic-backend-skzx.onrender.com';
+  // if (apiUrl.startsWith('http')) {
+  //   return `${apiUrl}/api`;
+  // }
+  // return apiUrl;
 };
 
 // Dynamic API base URL that updates when window.ELECTRON_API_BASE_URL changes
 const getApiUrl = (endpoint: string) => {
   const baseUrl = getApiBaseUrl();
   const fullUrl = `${baseUrl}${endpoint}`;
+  console.log(`API URL for ${endpoint}:`, fullUrl);
   return fullUrl;
 };
 
@@ -444,8 +443,22 @@ class ApiService {
   }
 
   // Orders API methods
-  async getOrders(): Promise<OrderData[]> {
-    return this.request<OrderData[]>('/orders');
+  async getOrders(params?: {
+    limit?: number;
+    skip?: number;
+    sortBy?: string;
+    sortOrder?: 'asc' | 'desc';
+    search?: string;
+  }): Promise<OrderData[]> {
+    const queryParams = new URLSearchParams();
+    if (params?.limit) queryParams.append('limit', params.limit.toString());
+    if (params?.skip) queryParams.append('skip', params.skip.toString());
+    if (params?.sortBy) queryParams.append('sortBy', params.sortBy);
+    if (params?.sortOrder) queryParams.append('sortOrder', params.sortOrder);
+    if (params?.search) queryParams.append('search', params.search);
+    
+    const endpoint = queryParams.toString() ? `/orders?${queryParams.toString()}` : '/orders';
+    return this.request<OrderData[]>(endpoint);
   }
 
   async getOrder(id: string): Promise<OrderData> {

@@ -282,7 +282,7 @@ export default function Dashboard() {
       color: "text-success"
     },
     {
-      title: "รอผลตรวจ",
+      title: "จำนวนการขาย",
       value: isLoadingStats ? "..." : stats.pendingResults.toString(),
       change: isLoadingStats ? "..." : calculatePercentageChange(stats.pendingResults, stats.yesterdayPendingResults),
       icon: Clock,

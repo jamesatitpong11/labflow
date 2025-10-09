@@ -30,7 +30,12 @@ import {
   FileText,
   Stethoscope,
   Printer,
-  Plus
+  Plus,
+  ChevronUp,
+  ChevronDown,
+  Tag,
+  QrCode,
+  ScanLine
 } from "lucide-react";
 
 export default function PatientRegistration() {
@@ -38,19 +43,36 @@ export default function PatientRegistration() {
   const [isReadingCard, setIsReadingCard] = useState(false);
   const [registrationHistory, setRegistrationHistory] = useState<PatientData[]>([]);
   const [searchTerm, setSearchTerm] = useState("");
-  const [useManualAge, setUseManualAge] = useState(false);
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
-  const [deletePatientId, setDeletePatientId] = useState<string>("");
-  const [deleteCredentials, setDeleteCredentials] = useState({ username: "", password: "" });
-  const [isDeleting, setIsDeleting] = useState(false);
+  const [patientToDelete, setPatientToDelete] = useState<PatientData | null>(null);
+  const [showEditDialog, setShowEditDialog] = useState(false);
+  const [patientToEdit, setPatientToEdit] = useState<PatientData | null>(null);
+  const [editFormData, setEditFormData] = useState<PatientData>({
+    _id: "",
+    ln: "",
+    idCard: "",
+    title: "",
+    firstName: "",
+    lastName: "",
+    gender: "male",
+    birthDate: "",
+    age: 0,
+    phoneNumber: "",
+    address: ""
+  });
+  
+  // New states for enhanced form fields
+  const [hasChronicDiseases, setHasChronicDiseases] = useState(false);
+  const [hasDrugAllergies, setHasDrugAllergies] = useState(false);
+  const [doctors, setDoctors] = useState<any[]>([]);
+  const [isLoadingDoctors, setIsLoadingDoctors] = useState(false);
+  const [originalAges, setOriginalAges] = useState<{[key: string]: number}>({});
+  const [useManualAge, setUseManualAge] = useState(false);
   const [isUpdateMode, setIsUpdateMode] = useState(false);
+  const [visitHistory, setVisitHistory] = useState<VisitData[]>([]);
   const [showVisitDialog, setShowVisitDialog] = useState(false);
   const [newPatientForVisit, setNewPatientForVisit] = useState<PatientData | null>(null);
-  const [showVisitDeleteDialog, setShowVisitDeleteDialog] = useState(false);
-  const [deleteVisitId, setDeleteVisitId] = useState<string>("");
-  const [isDeletingVisit, setIsDeletingVisit] = useState(false);
-  const [visitData, setVisitData] = useState<Partial<VisitData>>({
-    visitNumber: "",
+  const [visitData, setVisitData] = useState<any>({
     patientId: "",
     patientName: "",
     visitDate: new Date().toISOString().split('T')[0],
@@ -74,12 +96,18 @@ export default function PatientRegistration() {
     status: "pending"
   });
   
-  // New states for enhanced form fields
-  const [hasChronicDiseases, setHasChronicDiseases] = useState(false);
-  const [hasDrugAllergies, setHasDrugAllergies] = useState(false);
-  const [doctors, setDoctors] = useState<any[]>([]);
-  const [isLoadingDoctors, setIsLoadingDoctors] = useState(false);
-  const [visitHistory, setVisitHistory] = useState<VisitData[]>([]);
+  // Additional missing states
+  const [showVisitDeleteDialog, setShowVisitDeleteDialog] = useState(false);
+  const [deleteVisitId, setDeleteVisitId] = useState<string | null>(null);
+  const [isDeletingVisit, setIsDeletingVisit] = useState(false);
+  const [deletePatientId, setDeletePatientId] = useState<string | null>(null);
+  const [deleteCredentials, setDeleteCredentials] = useState({ firstName: "", lastName: "", username: "", password: "" });
+  const [isDeleting, setIsDeleting] = useState(false);
+  
+  // Toggle states for collapsible sections
+  const [showRegistrationHistory, setShowRegistrationHistory] = useState(true);
+  const [showVisitHistory, setShowVisitHistory] = useState(true);
+  
   const [formData, setFormData] = useState<PatientData>({
     _id: "",
     ln: "",
@@ -95,8 +123,11 @@ export default function PatientRegistration() {
   });
   const { toast } = useToast();
 
+
+
   // Load registration history on component mount
   useEffect(() => {
+    
     loadRegistrationHistory();
     loadVisitHistory();
     loadDoctors();
@@ -144,6 +175,15 @@ export default function PatientRegistration() {
     try {
       const patients = await apiService.getPatients();
       setRegistrationHistory(patients);
+      
+      // Store original ages for comparison
+      const ages: {[key: string]: number} = {};
+      patients.forEach(patient => {
+        if (patient._id) {
+          ages[patient._id] = patient.age;
+        }
+      });
+      setOriginalAges(ages);
     } catch (error) {
       console.error('Error loading registration history:', error);
       showErrorToast({
@@ -322,19 +362,35 @@ export default function PatientRegistration() {
       }
 
       if (isUpdateMode && formData._id) {
+        
+        // Validate required fields
+        if (!formData.firstName.trim() || !formData.lastName.trim()) {
+          throw new Error('กรุณากรอกชื่อและนามสกุล');
+        }
+        
+        // Validate Patient ID format
+        if (!formData._id || formData._id.length !== 24) {
+          throw new Error('รหัสผู้ป่วยไม่ถูกต้อง กรุณาลองใหม่');
+        }
+        
+        // Prepare update data with validation
+        const updateData = {
+          ln: formData.ln?.trim() || '',
+          idCard: formData.idCard?.trim() || null,
+          title: formData.title || '',
+          firstName: formData.firstName.trim(),
+          lastName: formData.lastName.trim(),
+          gender: formData.gender || 'male',
+          birthDate: formData.birthDate || '',
+          age: Math.max(0, Math.min(150, Number(formData.age) || 0)),
+          phoneNumber: formData.phoneNumber?.trim() || '',
+          address: formData.address?.trim() || ''
+        };
+        
+        
+        
         // Update existing patient
-        const updatedPatient = await apiService.updatePatient(formData._id, {
-          ln: formData.ln,
-          idCard: formData.idCard || null, // Convert empty string to null
-          title: formData.title,
-          firstName: formData.firstName,
-          lastName: formData.lastName,
-          gender: formData.gender,
-          birthDate: formData.birthDate,
-          age: formData.age,
-          phoneNumber: formData.phoneNumber,
-          address: formData.address
-        });
+        const updatedPatient = await apiService.updatePatient(formData._id, updateData);
 
         // Update in history
         setRegistrationHistory(prev => 
@@ -345,17 +401,26 @@ export default function PatientRegistration() {
           title: "อัปเดตข้อมูลสำเร็จ",
           description: `อัปเดตข้อมูลคนไข้ ${formData.firstName} ${formData.lastName} แล้ว`,
         });
+
+        // Scroll to top after successful update
+        window.scrollTo({ top: 0, behavior: 'smooth' });
       } else {
+        
+        // Validate required fields
+        if (!formData.firstName.trim() || !formData.lastName.trim()) {
+          throw new Error('กรุณากรอกชื่อและนามสกุล');
+        }
+        
         // Create new patient
         const newPatient = await apiService.createPatient({
           ln: formData.ln,
           idCard: formData.idCard || null, // Convert empty string to null
           title: formData.title,
-          firstName: formData.firstName,
-          lastName: formData.lastName,
+          firstName: formData.firstName.trim(),
+          lastName: formData.lastName.trim(),
           gender: formData.gender,
           birthDate: formData.birthDate,
-          age: formData.age,
+          age: Number(formData.age) || 0, // Ensure age is number
           phoneNumber: formData.phoneNumber,
           address: formData.address
         });
@@ -368,6 +433,9 @@ export default function PatientRegistration() {
           description: `บันทึกข้อมูลคนไข้ ${formData.firstName} ${formData.lastName} แล้ว`,
         });
 
+        // Scroll to top after successful registration
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+
         // Ask if user wants to create a visit for the new patient
         setNewPatientForVisit(newPatient);
         setShowVisitDialog(true);
@@ -378,10 +446,22 @@ export default function PatientRegistration() {
         handleClearForm();
       }
     } catch (error) {
-      console.error('Error saving/updating patient:', error);
+      
+      let errorMessage = 'ไม่สามารถดำเนินการได้';
+      
+      if (error instanceof Error) {
+        if (error.message.includes('500')) {
+          errorMessage = 'เซิร์เวอร์มีปัญหา กรุณาตรวจสอบข้อมูลและลองใหม่';
+        } else if (error.message.includes('network') || error.message.includes('fetch')) {
+          errorMessage = 'ไม่สามารถเชื่อมต่อเซิร์เวอร์ได้ ตรวจสอบการเชื่อมต่ออินเทอร์เน็ต';
+        } else {
+          errorMessage = error.message;
+        }
+      }
+      
       showErrorToast({
         title: "เกิดข้อผิดพลาด",
-        description: error instanceof Error ? error.message : `ไม่สามารถ${isUpdateMode ? 'อัปเดต' : 'บันทึก'}ข้อมูลได้`,
+        description: errorMessage,
       });
     } finally {
       setIsLoading(false);
@@ -426,6 +506,9 @@ export default function PatientRegistration() {
           title: "อัปเดต Visit สำเร็จ",
           description: `อัปเดต Visit ${visitData.visitNumber} สำหรับ ${newPatientForVisit.firstName} ${newPatientForVisit.lastName} แล้ว`,
         });
+
+        // Scroll to top after successful visit update
+        window.scrollTo({ top: 0, behavior: 'smooth' });
       } else {
         // Generate visit number for new visit
         const visitNumberResponse = await apiService.generateNextVisitNumber(visitData.visitDate);
@@ -460,6 +543,9 @@ export default function PatientRegistration() {
           title: "เปิด Visit สำเร็จ",
           description: `เปิด Visit ${result.visitNumber} สำหรับ ${newPatientForVisit.firstName} ${newPatientForVisit.lastName} แล้ว`,
         });
+
+        // Scroll to top after successful visit creation
+        window.scrollTo({ top: 0, behavior: 'smooth' });
       }
 
       // Refresh visit history
@@ -599,40 +685,71 @@ export default function PatientRegistration() {
     }
   };
   
-  // Handle doctor creation when user finishes typing (on blur)
-  const handleDoctorBlur = async () => {
+  // Handle doctor creation when user clicks save or blur
+  const handleDoctorSave = async () => {
     const doctorName = visitData.referringDoctor?.trim();
+    const licenseNumber = visitData.doctorLicenseNumber?.trim();
     
-    console.log('=== DOCTOR BLUR DEBUG ===');
+    console.log('=== DOCTOR SAVE DEBUG ===');
     console.log('Doctor name:', doctorName);
+    console.log('License number:', licenseNumber);
     console.log('Existing doctors:', doctors);
     
-    if (!doctorName) {
-      console.log('No doctor name provided');
+    // Check if both fields are empty - do nothing
+    if (!doctorName && !licenseNumber) {
+      console.log('Both fields empty - no action needed');
       return;
     }
     
     // Check if doctor already exists
-    const existingDoctor = doctors.find(doc => doc.name === doctorName);
-    if (existingDoctor) {
-      console.log('Doctor already exists:', existingDoctor);
+    if (doctorName) {
+      const existingDoctor = doctors.find(doc => doc.name === doctorName);
+      if (existingDoctor) {
+        console.log('Doctor already exists:', existingDoctor);
+        showInfoToast({
+          title: "แพทย์มีอยู่แล้ว",
+          description: `แพทย์ ${doctorName} มีอยู่ในระบบแล้ว`,
+        });
+        return;
+      }
+    }
+    
+    // Validate required fields - only show warning if user has started filling
+    if (!doctorName || !licenseNumber) {
+      let missingFields = [];
+      if (!doctorName) missingFields.push('ชื่อแพทย์');
+      if (!licenseNumber) missingFields.push('เลขใบอนุญาต');
+      
+      console.log('Validation failed - missing:', missingFields);
+      showWarningToast({
+        title: "ข้อมูลไม่ครบถ้วน",
+        description: `กรุณากรอก ${missingFields.join('และ')} ให้ครบถ้วนก่อนบันทึก`,
+      });
+      
+      // Focus on the first empty field
+      if (!doctorName) {
+        document.getElementById('referring-doctor')?.focus();
+      } else if (!licenseNumber) {
+        document.getElementById('doctor-license')?.focus();
+      }
+      
       return;
     }
     
-    console.log('Creating new doctor...');
+    console.log('Validation passed - creating new doctor...');
     
-    // Create new doctor if name is provided and doesn't exist
+    // Create new doctor if both name and license number are provided
     try {
       const doctorData = {
         name: doctorName,
-        licenseNumber: visitData.doctorLicenseNumber || ''
+        licenseNumber: licenseNumber
       };
       
       console.log('Doctor data to create:', doctorData);
       
       const newDoctor = await apiService.createDoctor(doctorData);
       
-      console.log('New doctor created:', newDoctor);
+      console.log('New doctor created successfully:', newDoctor);
       
       // Add to doctors list
       setDoctors(prev => {
@@ -642,18 +759,17 @@ export default function PatientRegistration() {
       });
       
       showSuccessToast({
-        title: "เพิ่มแพทย์ใหม่",
-        description: `เพิ่มแพทย์ ${doctorName} เข้าฐานข้อมูลแล้ว`,
+        title: "เพิ่มแพทย์ใหม่สำเร็จ",
+        description: `เพิ่มแพทย์ ${doctorName} (ใบอนุญาต: ${licenseNumber}) เข้าฐานข้อมูลแล้ว`,
       });
     } catch (error) {
       console.error('Error creating doctor:', error);
       
       // Check if it's a duplicate name error
       if (error instanceof Error && error.message.includes('400')) {
-        // This is likely a duplicate name, just show info toast
         showInfoToast({
           title: "แพทย์มีอยู่แล้ว",
-          description: `แพทย์ ${doctorName} มีอยู่ในระบบแล้ว`,
+          description: `แพทย์ ${doctorName} หรือเลขใบอนุญาตนี้มีอยู่ในระบบแล้ว`,
         });
         
         // Reload doctors list to make sure we have the latest data
@@ -661,9 +777,20 @@ export default function PatientRegistration() {
       } else {
         showErrorToast({
           title: "เกิดข้อผิดพลาด",
-          description: `ไม่สามารถเพิ่มแพทย์ ${doctorName} ได้`,
+          description: `ไม่สามารถเพิ่มแพทย์ ${doctorName} ได้: ${error instanceof Error ? error.message : 'ข้อผิดพลาดไม่ทราบสาเหตุ'}`,
         });
       }
+    }
+  };
+  
+  // Handle blur event for doctor fields
+  const handleDoctorBlur = () => {
+    // Only trigger save if both fields have content
+    const doctorName = visitData.referringDoctor?.trim();
+    const licenseNumber = visitData.doctorLicenseNumber?.trim();
+    
+    if (doctorName && licenseNumber) {
+      handleDoctorSave();
     }
   };
 
@@ -683,14 +810,295 @@ export default function PatientRegistration() {
     }
   };
 
-  // Visit Management Functions
-  const handlePrintVisit = (visit: VisitData) => {
-    showInfoToast({
-      title: "พิมพ์ Visit",
-      description: `กำลังพิมพ์ Visit ${visit.visitNumber}`,
+  // Handle edit patient button click
+  const handleEditPatient = (patient: PatientData) => {
+    // Load patient data into main form
+    setFormData({
+      _id: patient._id || "",
+      ln: patient.ln,
+      idCard: patient.idCard || "",
+      title: patient.title,
+      firstName: patient.firstName,
+      lastName: patient.lastName,
+      gender: patient.gender,
+      birthDate: patient.birthDate || "",
+      age: patient.age,
+      phoneNumber: patient.phoneNumber || "",
+      address: patient.address || ""
     });
-    // TODO: Implement print functionality
-    console.log('Print visit:', visit);
+    
+    // Set to update mode
+    setIsUpdateMode(true);
+    setUseManualAge(!patient.birthDate && patient.age > 0);
+    
+    // Scroll to main form
+    const mainForm = document.querySelector('.main-form');
+    if (mainForm) {
+      mainForm.scrollIntoView({ 
+        behavior: 'smooth', 
+        block: 'start' 
+      });
+    }
+    
+    showInfoToast({
+      title: "โหลดข้อมูลแล้ว",
+      description: `โหลดข้อมูล ${patient.firstName} ${patient.lastName} ในฟอร์มสำหรับแก้ไข`,
+    });
+  };
+
+  // Handle edit form data change
+  const handleEditFormChange = (field: keyof PatientData, value: any) => {
+    setEditFormData(prev => ({
+      ...prev,
+      [field]: value
+    }));
+  };
+
+  // Handle save edited patient
+  const handleSaveEditedPatient = async () => {
+    if (!editFormData._id) return;
+    
+    setIsLoading(true);
+    try {
+      console.log('=== UPDATING PATIENT FROM DIALOG ===');
+      console.log('Patient ID:', editFormData._id);
+      console.log('Edit Form Data:', editFormData);
+      
+      // Validate required fields
+      if (!editFormData.firstName.trim() || !editFormData.lastName.trim()) {
+        throw new Error('กรุณากรอกชื่อและนามสกุล');
+      }
+      
+      const updatedPatient = await apiService.updatePatient(editFormData._id, {
+        ln: editFormData.ln,
+        idCard: editFormData.idCard || null,
+        title: editFormData.title,
+        firstName: editFormData.firstName.trim(),
+        lastName: editFormData.lastName.trim(),
+        gender: editFormData.gender,
+        birthDate: editFormData.birthDate,
+        age: Number(editFormData.age) || 0,
+        phoneNumber: editFormData.phoneNumber,
+        address: editFormData.address
+      });
+      
+      console.log('Updated patient result:', updatedPatient);
+      
+      // Update in registration history
+      setRegistrationHistory(prev => 
+        prev.map(p => p._id === editFormData._id ? updatedPatient : p)
+      );
+      
+      showSuccessToast({
+        title: "อัปเดตข้อมูลสำเร็จ",
+        description: `อัปเดตข้อมูลคนไข้ ${editFormData.firstName} ${editFormData.lastName} แล้ว`,
+      });
+      
+      // Close dialog
+      setShowEditDialog(false);
+      setPatientToEdit(null);
+    } catch (error) {
+      console.error('Error updating patient:', error);
+      showErrorToast({
+        title: "เกิดข้อผิดพลาด",
+        description: error instanceof Error ? error.message : `ไม่สามารถอัปเดตข้อมูลได้`,
+      });
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  // Handle cancel edit
+  const handleCancelEdit = () => {
+    setShowEditDialog(false);
+    setPatientToEdit(null);
+  };
+
+  // Handle patient age update
+  const handlePatientAgeUpdate = async (patientId: string, newAge: number) => {
+    console.log('=== UPDATING PATIENT AGE ===');
+    console.log('Patient ID:', patientId);
+    console.log('New Age:', newAge);
+    console.log('API Base URL:', 'http://localhost:8080/api');
+    
+    try {
+      // Validate age before sending
+      if (newAge < 0 || newAge > 150) {
+        throw new Error('อายุต้องอยู่ระหว่าง 0-150 ปี');
+      }
+      
+      const result = await apiService.updatePatient(patientId, { age: newAge });
+      console.log('Update result:', result);
+      
+      // Update the patient in registration history immediately
+      setRegistrationHistory(prev => 
+        prev.map(p => p._id === patientId ? { ...p, age: newAge } : p)
+      );
+      
+      showSuccessToast({
+        title: "อัปเดตอายุสำเร็จ",
+        description: `อัปเดตอายุเป็น ${newAge} ปีแล้ว`,
+      });
+    } catch (error) {
+      console.error('Error updating patient age:', error);
+      showErrorToast({
+        title: "เกิดข้อผิดพลาด",
+        description: `ไม่สามารถอัปเดตอายุได้: ${error instanceof Error ? error.message : 'Unknown error'}`,
+      });
+      
+      // Revert the change in UI
+      loadRegistrationHistory();
+    }
+  };
+
+  // Visit Management Functions
+  const handlePrintVisit = async (visit: VisitData) => {
+    try {
+      showInfoToast({
+        title: "กำลังพิมพ์เวชระเบียน",
+        description: `กำลังเตรียมข้อมูลสำหรับ Visit ${visit.visitNumber}`,
+      });
+
+      // Get company settings
+      const companySettings = await apiService.getCompanySettings();
+      
+      // Get patient data
+      const patientData = visit.patientData || registrationHistory.find(p => p._id === visit.patientId);
+      
+      if (!patientData) {
+        throw new Error('ไม่พบข้อมูลผู้ป่วย');
+      }
+
+      // Prepare medical record form data
+      const { printMedicalRecordForm } = await import('@/utils/medicalRecordForm');
+      
+      const formData = {
+        // Company info
+        companyInfo: companySettings,
+        
+        // Patient info
+        patientln: patientData.ln,
+        patientTitle: patientData.title || '',
+        patientFirstName: patientData.firstName,
+        patientLastName: patientData.lastName,
+        patientBirthDate: patientData.birthDate,
+        patientAge: patientData.age,
+        patientGender: patientData.gender,
+        patientIdCard: patientData.idCard || '',
+        patientPhone: patientData.phoneNumber || '',
+        patientAddress: patientData.address || '',
+        
+        // Visit info
+        visitNumber: visit.visitNumber,
+        visitDate: visit.visitDate,
+        
+        // Medical info
+        weight: visit.weight ? parseFloat(String(visit.weight)) : undefined,
+        height: visit.height ? parseFloat(String(visit.height)) : undefined,
+        bloodPressure: String(visit.bloodPressure || ''),
+        pulse: String(visit.pulse || ''),
+        chronicDiseases: String(visit.chronicDiseases || ''),
+        drugAllergies: String(visit.drugAllergies || ''),
+        
+        // Insurance info
+        insuranceType: visit.patientRights,
+        insuranceNumber: visit.insuranceNumber,
+        
+        // Result delivery
+        resultDeliveryMethod: visit.resultDeliveryMethod,
+        resultDeliveryDetails: visit.resultDeliveryDetails
+      };
+
+      // Get saved printer from localStorage
+      const savedPrinter = localStorage.getItem('selectedPrinter');
+      
+      // Print the medical record form
+      await printMedicalRecordForm(formData, savedPrinter || undefined);
+      
+      showSuccessToast({
+        title: "พิมพ์เวชระเบียนสำเร็จ",
+        description: `พิมพ์เวชระเบียน Visit ${visit.visitNumber} เรียบร้อยแล้ว`,
+      });
+      
+    } catch (error) {
+      console.error('Error printing medical record:', error);
+      showErrorToast({
+        title: "ไม่สามารถพิมพ์เวชระเบียนได้",
+        description: error instanceof Error ? error.message : 'เกิดข้อผิดพลาดในการพิมพ์',
+      });
+    }
+  };
+
+  const handlePrintSticker = async (visit: VisitData) => {
+    try {
+      showInfoToast({
+        title: "กำลังพิมพ์สติ๊กเกอร์",
+        description: `กำลังเตรียมสติ๊กเกอร์สำหรับ ${visit.patientName}`,
+      });
+
+      // Get patient data
+      const patientData = visit.patientData || registrationHistory.find(p => p._id === visit.patientId);
+      
+      if (!patientData) {
+        throw new Error('ไม่พบข้อมูลผู้ป่วย');
+      }
+
+      // Get sticker printer from settings
+      const { getPrinterByType } = await import('@/lib/printer-utils');
+      const stickerPrinterName = getPrinterByType('sticker');
+      
+      console.log('🖨️ Sticker printer configuration:', stickerPrinterName);
+      
+      if (!stickerPrinterName) {
+        showWarningToast({
+          title: "ไม่พบเครื่องพิมพ์สติ๊กเกอร์",
+          description: "กรุณาไปที่หน้า 'ตั้งค่า > เครื่องพิมพ์' เพื่อกำหนดเครื่องพิมพ์สติ๊กเกอร์",
+        });
+        return;
+      }
+
+      console.log(`🎯 Using configured sticker printer: ${stickerPrinterName}`);
+
+      // Prepare sticker data
+      const { printSticker } = await import('@/utils/stickerPrinter');
+      
+      const stickerData = {
+        idCard: patientData.idCard && !patientData.idCard.startsWith('NO_ID_') 
+          ? patientData.idCard 
+          : visit.visitNumber, // Use visit number if no ID card
+        title: patientData.title || '',
+        firstName: patientData.firstName,
+        lastName: patientData.lastName,
+        visitNumber: visit.visitNumber,
+        ln: patientData.ln || '',
+        age: String(patientData.age || ''),
+        visitDate: new Date(visit.visitDate).toLocaleDateString('th-TH', {
+          day: '2-digit',
+          month: '2-digit',
+          year: '2-digit'
+        }),
+        visitTime: visit.visitTime || new Date().toLocaleTimeString('th-TH', {
+          hour: '2-digit',
+          minute: '2-digit'
+        }),
+        printerName: stickerPrinterName
+      };
+
+      // Print the sticker (same pattern as medical record)
+      await printSticker(stickerData);
+      
+      showSuccessToast({
+        title: "พิมพ์สติ๊กเกอร์สำเร็จ",
+        description: `ส่งสติ๊กเกอร์ ${visit.patientName} ไปยัง ${stickerPrinterName} เรียบร้อยแล้ว`,
+      });
+      
+    } catch (error) {
+      console.error('Error printing sticker:', error);
+      showErrorToast({
+        title: "ไม่สามารถพิมพ์สติ๊กเกอร์ได้",
+        description: error instanceof Error ? error.message : 'เกิดข้อผิดพลาดในการพิมพ์สติ๊กเกอร์',
+      });
+    }
   };
 
   const handleEditVisit = (visit: VisitData) => {
@@ -905,7 +1313,7 @@ export default function PatientRegistration() {
   const handleDelete = (patientId: string) => {
     setDeletePatientId(patientId);
     setShowDeleteDialog(true);
-    setDeleteCredentials({ username: "", password: "" });
+    setDeleteCredentials({ firstName: "", lastName: "", username: "", password: "" });
   };
 
   const confirmDelete = async () => {
@@ -975,7 +1383,7 @@ export default function PatientRegistration() {
       
       setShowDeleteDialog(false);
       setDeletePatientId("");
-      setDeleteCredentials({ username: "", password: "" });
+      setDeleteCredentials({ firstName: "", lastName: "", username: "", password: "" });
     } catch (error) {
       console.error('Error during delete process:', error);
       showErrorToast({
@@ -990,7 +1398,7 @@ export default function PatientRegistration() {
   const cancelDelete = () => {
     setShowDeleteDialog(false);
     setDeletePatientId("");
-    setDeleteCredentials({ username: "", password: "" });
+    setDeleteCredentials({ firstName: "", lastName: "", username: "", password: "" });
   };
 
   const handleNoIdCard = async () => {
@@ -1045,27 +1453,49 @@ export default function PatientRegistration() {
         {/* Registration History - Top */}
         <Card className="shadow-sm border border-border">
           <CardHeader className="bg-green-100 dark:bg-black/10 border-b p-3">
-            <CardTitle className="flex items-center gap-2 text-sm">
-              <UserPlus className="h-3 w-3 text-primary" />
-              ประวัติการลงทะเบียน
-            </CardTitle>
-            <CardDescription className="text-xs text-muted-foreground">
-              รายการคนไข้ที่ลงทะเบียนล่าสุด
-            </CardDescription>
-
-            {/* Search */}
-            <div className="relative mt-3">
-              <Search className="absolute left-2 top-1/2 transform -translate-y-1/2 h-3 w-3 text-primary" />
-              <Input
-                placeholder="ค้นหาชื่อ, เลขบัตร, Ln..."
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                className="pl-8 h-8 text-sm border border-border/50 focus:border-primary transition-colors"
-              />
+            <div className="flex items-center justify-between">
+              <div>
+                <CardTitle className="flex items-center gap-2 text-sm">
+                  <UserPlus className="h-3 w-3 text-primary" />
+                  ประวัติการลงทะเบียน
+                </CardTitle>
+                <CardDescription className="text-xs text-muted-foreground">
+                  รายการคนไข้ที่ลงทะเบียนล่าสุด
+                </CardDescription>
+              </div>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => setShowRegistrationHistory(!showRegistrationHistory)}
+                className="h-6 w-6 p-0 hover:bg-primary/10"
+                title={showRegistrationHistory ? "ซ่อนประวัติ" : "แสดงประวัติ"}
+              >
+                {showRegistrationHistory ? (
+                  <ChevronUp className="h-3 w-3" />
+                ) : (
+                  <ChevronDown className="h-3 w-3" />
+                )}
+              </Button>
             </div>
+
+            {/* Search - Only show when history is visible */}
+            {showRegistrationHistory && (
+              <div className="relative mt-3">
+                <Search className="absolute left-2 top-1/2 transform -translate-y-1/2 h-3 w-3 text-primary" />
+                <Input
+                  placeholder="ค้นหาชื่อ, เลขบัตร, Ln..."
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  className="pl-8 h-8 text-sm border border-border/50 focus:border-primary transition-colors"
+                />
+              </div>
+            )}
           </CardHeader>
-          <CardContent className="p-3 space-y-2 max-h-[300px] overflow-y-auto">
-            {filteredHistory.length === 0 ? (
+          <div className={`transition-all duration-300 ease-in-out overflow-hidden ${
+            showRegistrationHistory ? 'max-h-[400px] opacity-100' : 'max-h-0 opacity-0'
+          }`}>
+            <CardContent className="p-3 space-y-2 max-h-[300px] overflow-y-auto">
+              {filteredHistory.length === 0 ? (
               <div className="text-center text-muted-foreground py-4">
                 <div className="p-2 rounded-full bg-muted/30 w-fit mx-auto mb-2">
                   <User className="h-6 w-6 opacity-50" />
@@ -1087,7 +1517,39 @@ export default function PatientRegistration() {
                               <span className="font-medium">Ln:</span> {patient.ln}
                             </div>
                             <div className="flex items-center gap-1">
-                              <span className="font-medium">อายุ:</span> {patient.age} ปี
+                              <span className="font-medium">อายุ:</span>
+                              <Input
+                                type="number"
+                                value={patient.age}
+                                onChange={(e) => {
+                                  const newAge = parseInt(e.target.value) || 0;
+                                  // Update patient age in the list immediately for UI responsiveness
+                                  setRegistrationHistory(prev => 
+                                    prev.map(p => 
+                                      p._id === patient._id 
+                                        ? { ...p, age: newAge }
+                                        : p
+                                    )
+                                  );
+                                }}
+                                onBlur={(e) => {
+                                  const newAge = parseInt(e.target.value) || 0;
+                                  const originalAge = originalAges[patient._id || ''] || patient.age;
+                                  // Save to database when user finishes editing
+                                  if (patient._id && newAge !== originalAge) {
+                                    handlePatientAgeUpdate(patient._id, newAge);
+                                    // Update original age after successful save
+                                    setOriginalAges(prev => ({
+                                      ...prev,
+                                      [patient._id!]: newAge
+                                    }));
+                                  }
+                                }}
+                                className="h-5 w-12 text-xs px-1 border-0 bg-transparent focus:bg-white focus:border focus:border-primary transition-all"
+                                min="0"
+                                max="150"
+                              />
+                              <span className="text-xs">ปี</span>
                             </div>
                           </div>
                         </div>
@@ -1104,7 +1566,7 @@ export default function PatientRegistration() {
                           <Button
                             size="sm"
                             variant="ghost"
-                            onClick={() => handleEdit(patient)}
+                            onClick={() => handleEditPatient(patient)}
                             className="h-6 w-6 p-0 text-primary hover:bg-primary/10"
                             title="แก้ไข"
                           >
@@ -1126,22 +1588,43 @@ export default function PatientRegistration() {
                 </Card>
               ))
             )}
-          </CardContent>
+            </CardContent>
+          </div>
         </Card>
 
         {/* Visit History - Bottom */}
         <Card className="shadow-sm border border-border">
           <CardHeader className="bg-purple-100 dark:bg-black/10 border-b p-3">
-            <CardTitle className="flex items-center gap-2 text-sm">
-              <Stethoscope className="h-3 w-3 text-primary" />
-              ประวัติเปิด Visit
-            </CardTitle>
-            <CardDescription className="text-xs text-muted-foreground">
-              รายการ Visit ที่เปิดล่าสุด
-            </CardDescription>
+            <div className="flex items-center justify-between">
+              <div>
+                <CardTitle className="flex items-center gap-2 text-sm">
+                  <Stethoscope className="h-3 w-3 text-primary" />
+                  ประวัติเปิด Visit
+                </CardTitle>
+                <CardDescription className="text-xs text-muted-foreground">
+                  รายการ Visit ที่เปิดล่าสุด
+                </CardDescription>
+              </div>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => setShowVisitHistory(!showVisitHistory)}
+                className="h-6 w-6 p-0 hover:bg-primary/10"
+                title={showVisitHistory ? "ซ่อนประวัติ Visit" : "แสดงประวัติ Visit"}
+              >
+                {showVisitHistory ? (
+                  <ChevronUp className="h-3 w-3" />
+                ) : (
+                  <ChevronDown className="h-3 w-3" />
+                )}
+              </Button>
+            </div>
           </CardHeader>
-          <CardContent className="p-3 space-y-2 max-h-[300px] overflow-y-auto">
-            {visitHistory.length === 0 ? (
+          <div className={`transition-all duration-300 ease-in-out overflow-hidden ${
+            showVisitHistory ? 'max-h-[400px] opacity-100' : 'max-h-0 opacity-0'
+          }`}>
+            <CardContent className="p-3 space-y-2 max-h-[300px] overflow-y-auto">
+              {visitHistory.length === 0 ? (
               <div className="text-center text-muted-foreground py-4">
                 <div className="p-2 rounded-full bg-muted/30 w-fit mx-auto mb-2">
                   <FileText className="h-6 w-6 opacity-50" />
@@ -1193,6 +1676,15 @@ export default function PatientRegistration() {
                           <Button
                             size="sm"
                             variant="ghost"
+                            onClick={() => handlePrintSticker(visit)}
+                            className="h-6 w-6 p-0 text-green-600 hover:bg-green-50"
+                            title="พิมพ์สติ๊กเกอร์บาร์โค้ด"
+                          >
+                            <ScanLine className="h-3 w-3" />
+                          </Button>
+                          <Button
+                            size="sm"
+                            variant="ghost"
                             onClick={() => handleEditVisit(visit)}
                             className="h-6 w-6 p-0 text-primary hover:bg-primary/10"
                             title="แก้ไข"
@@ -1222,7 +1714,8 @@ export default function PatientRegistration() {
                 </Card>
               ))
             )}
-          </CardContent>
+            </CardContent>
+          </div>
         </Card>
       </div>
 
@@ -1277,14 +1770,46 @@ export default function PatientRegistration() {
         </div>
 
         {/* Registration Form */}
-        <Card className="shadow-sm border border-border">
-          <CardHeader className="bg-blue-50 dark:bg-black/10 border-b">
-            <CardTitle className="flex items-center gap-2 text-lg">
-              <UserPlus className="h-4 w-4 text-primary" />
-              ลงทะเบียนคนไข้ใหม่
+        <Card className={`shadow-sm border main-form transition-all duration-300 ${
+          isUpdateMode || formData.firstName || formData.lastName || formData.idCard
+            ? 'border-primary bg-primary/5 shadow-primary/20 shadow-lg'
+            : 'border-border bg-card'
+        }`}>
+          <CardHeader className={`border-b transition-all duration-300 ${
+            isUpdateMode || formData.firstName || formData.lastName || formData.idCard
+              ? 'bg-primary/10 border-primary/20'
+              : 'bg-blue-50 dark:bg-black/10'
+          }`}>
+            <CardTitle className="flex items-center justify-between text-lg">
+              <div className="flex items-center gap-2">
+                {isUpdateMode ? (
+                  <>
+                    <Edit className="h-4 w-4 text-primary" />
+                    แก้ไขข้อมูลคนไข้
+                  </>
+                ) : (
+                  <>
+                    <UserPlus className="h-4 w-4 text-primary" />
+                    ลงทะเบียนคนไข้ใหม่
+                  </>
+                )}
+              </div>
+              
+              {/* Status Indicator */}
+              {(isUpdateMode || formData.firstName || formData.lastName || formData.idCard) && (
+                <div className="flex items-center gap-2">
+                  <div className="w-2 h-2 bg-primary rounded-full animate-pulse"></div>
+                  <span className="text-xs text-primary font-medium">
+                    {isUpdateMode ? 'โหมดแก้ไข' : 'กำลังกรอกข้อมูล'}
+                  </span>
+                </div>
+              )}
             </CardTitle>
             <CardDescription className="text-sm text-muted-foreground">
-              กรอกข้อมูลคนไข้หรือใช้เครื่องอ่านบัตรประชาชน
+              {isUpdateMode 
+                ? `แก้ไขข้อมูลคนไข้ ${formData.firstName} ${formData.lastName}` 
+                : "กรอกข้อมูลคนไข้หรือใช้เครื่องอ่านบัตรประชาชน"
+              }
             </CardDescription>
           </CardHeader>
           <CardContent className="p-4">
@@ -1507,7 +2032,11 @@ export default function PatientRegistration() {
               </div>
 
               {/* Action Buttons */}
-              <div className="flex gap-3 pt-4 border-t">
+              <div className={`flex gap-3 pt-4 border-t transition-all duration-300 ${
+                isUpdateMode || formData.firstName || formData.lastName || formData.idCard
+                  ? 'border-primary/20 bg-primary/5 -mx-4 -mb-4 px-4 pb-4 mt-4'
+                  : 'border-border'
+              }`}>
                 <Button
                   type="submit"
                   className="flex-1 h-9 bg-primary hover:bg-primary/90 text-primary-foreground text-sm"
@@ -1527,7 +2056,7 @@ export default function PatientRegistration() {
                   className="flex-1 h-9 border border-primary/30 text-primary hover:bg-primary/10 text-sm"
                 >
                   <RotateCcw className="h-3 w-3 mr-2" />
-                  ล้างข้อมูล
+                  {isUpdateMode ? "ยกเลิกการแก้ไข" : "ล้างข้อมูล"}
                 </Button>
               </div>
             </form>
@@ -1867,7 +2396,7 @@ export default function PatientRegistration() {
                 {/* Doctor Information */}
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                   <div className="space-y-2">
-                    <Label htmlFor="referring-doctor" className="text-sm font-medium">แพทย์ที่ส่งตัว</Label>
+                    <Label htmlFor="referring-doctor" className="text-sm font-medium">แพทย์ที่ส่งตัว *</Label>
                     <div className="relative">
                       <Input
                         id="referring-doctor"
@@ -1877,6 +2406,7 @@ export default function PatientRegistration() {
                         onChange={(e) => handleDoctorSelect(e.target.value)}
                         onBlur={handleDoctorBlur}
                         className="h-10"
+                        required
                       />
                       <datalist id="doctors-options">
                         {doctors.map((doctor, index) => (
@@ -1889,17 +2419,31 @@ export default function PatientRegistration() {
                         </div>
                       )}
                     </div>
-                    <p className="text-xs text-muted-foreground">สามารถแก้ไขหรือลบเพื่อเลือกใหม่ได้</p>
+                    <p className="text-xs text-muted-foreground">เลือกจากรายการ หรือพิมพ์ใหม่ + กรอกเลขใบอนุญาต</p>
                   </div>
                   <div className="space-y-2">
-                    <Label htmlFor="doctor-license" className="text-sm font-medium">เลขใบอนุญาตแพทย์</Label>
+                    <Label htmlFor="doctor-license" className="text-sm font-medium">เลขใบอนุญาตแพทย์ *</Label>
                     <Input
                       id="doctor-license"
-                      placeholder="เลขใบอนุญาตแพทย์"
+                      placeholder="กรอกเลขใบอนุญาตแพทย์"
                       value={visitData.doctorLicenseNumber}
                       onChange={(e) => handleVisitDataChange('doctorLicenseNumber', e.target.value)}
+                      onBlur={handleDoctorBlur}
                       className="h-10"
+                      required
                     />
+                    <div className="flex items-center gap-2">
+                      <p className="text-xs text-muted-foreground flex-1">จำเป็นต้องกรอกครบถ้วนก่อนบันทึกแพทย์ใหม่</p>
+                      <Button
+                        type="button"
+                        size="sm"
+                        variant="outline"
+                        onClick={handleDoctorSave}
+                        className="h-6 px-2 text-xs"
+                      >
+                        บันทึกแพทย์
+                      </Button>
+                    </div>
                   </div>
                   <div className="space-y-2">
                     <Label htmlFor="order-date" className="text-sm font-medium">วันที่สั่งตรวจ</Label>
@@ -1988,6 +2532,164 @@ export default function PatientRegistration() {
               disabled={isDeletingVisit}
             >
               {isDeletingVisit ? "กำลังลบ..." : "ยืนยันและลบ"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Edit Patient Dialog */}
+      <Dialog open={showEditDialog} onOpenChange={setShowEditDialog}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Edit className="h-4 w-4" />
+              แก้ไขข้อมูลผู้ป่วย
+            </DialogTitle>
+            <DialogDescription>
+              แก้ไขข้อมูลผู้ป่วย {patientToEdit?.firstName} {patientToEdit?.lastName}
+            </DialogDescription>
+          </DialogHeader>
+          
+          <div className="space-y-4">
+            {/* LN */}
+            <div className="space-y-2">
+              <Label htmlFor="edit-ln">เลข LN</Label>
+              <Input
+                id="edit-ln"
+                value={editFormData.ln}
+                onChange={(e) => handleEditFormChange('ln', e.target.value)}
+                placeholder="เลข LN"
+              />
+            </div>
+            
+            {/* ID Card */}
+            <div className="space-y-2">
+              <Label htmlFor="edit-idCard">เลขบัตรประชาชน</Label>
+              <Input
+                id="edit-idCard"
+                value={editFormData.idCard || ''}
+                onChange={(e) => handleEditFormChange('idCard', e.target.value)}
+                placeholder="เลขบัตรประชาชน"
+              />
+            </div>
+            
+            {/* Title */}
+            <div className="space-y-2">
+              <Label htmlFor="edit-title">คำนำหน้า</Label>
+              <Select value={editFormData.title} onValueChange={(value) => handleEditFormChange('title', value)}>
+                <SelectTrigger>
+                  <SelectValue placeholder="เลือกคำนำหน้า" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="นาย">นาย</SelectItem>
+                  <SelectItem value="นางสาว">นางสาว</SelectItem>
+                  <SelectItem value="นาง">นาง</SelectItem>
+                  <SelectItem value="เด็กชาย">เด็กชาย</SelectItem>
+                  <SelectItem value="เด็กหญิง">เด็กหญิง</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            
+            {/* Name */}
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label htmlFor="edit-firstName">ชื่อ *</Label>
+                <Input
+                  id="edit-firstName"
+                  value={editFormData.firstName}
+                  onChange={(e) => handleEditFormChange('firstName', e.target.value)}
+                  placeholder="ชื่อ"
+                  required
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="edit-lastName">นามสกุล *</Label>
+                <Input
+                  id="edit-lastName"
+                  value={editFormData.lastName}
+                  onChange={(e) => handleEditFormChange('lastName', e.target.value)}
+                  placeholder="นามสกุล"
+                  required
+                />
+              </div>
+            </div>
+            
+            {/* Gender and Age */}
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label htmlFor="edit-gender">เพศ</Label>
+                <Select value={editFormData.gender} onValueChange={(value) => handleEditFormChange('gender', value)}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="เลือกเพศ" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="male">ชาย</SelectItem>
+                    <SelectItem value="female">หญิง</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="edit-age">อายุ</Label>
+                <Input
+                  id="edit-age"
+                  type="number"
+                  value={editFormData.age}
+                  onChange={(e) => handleEditFormChange('age', parseInt(e.target.value) || 0)}
+                  placeholder="อายุ"
+                  min="0"
+                  max="150"
+                />
+              </div>
+            </div>
+            
+            {/* Birth Date */}
+            <div className="space-y-2">
+              <Label htmlFor="edit-birthDate">วันเกิด</Label>
+              <Input
+                id="edit-birthDate"
+                type="date"
+                value={editFormData.birthDate || ''}
+                onChange={(e) => handleEditFormChange('birthDate', e.target.value)}
+              />
+            </div>
+            
+            {/* Phone */}
+            <div className="space-y-2">
+              <Label htmlFor="edit-phoneNumber">เบอร์โทรศัพท์</Label>
+              <Input
+                id="edit-phoneNumber"
+                value={editFormData.phoneNumber || ''}
+                onChange={(e) => handleEditFormChange('phoneNumber', e.target.value)}
+                placeholder="เบอร์โทรศัพท์"
+              />
+            </div>
+            
+            {/* Address */}
+            <div className="space-y-2">
+              <Label htmlFor="edit-address">ที่อยู่</Label>
+              <Textarea
+                id="edit-address"
+                value={editFormData.address || ''}
+                onChange={(e) => handleEditFormChange('address', e.target.value)}
+                placeholder="ที่อยู่"
+                rows={3}
+              />
+            </div>
+          </div>
+          
+          <DialogFooter className="gap-2">
+            <Button
+              variant="outline"
+              onClick={handleCancelEdit}
+              disabled={isLoading}
+            >
+              ยกเลิก
+            </Button>
+            <Button
+              onClick={handleSaveEditedPatient}
+              disabled={isLoading}
+            >
+              {isLoading ? "กำลังบันทึก..." : "ยืนยันการแก้ไข"}
             </Button>
           </DialogFooter>
         </DialogContent>

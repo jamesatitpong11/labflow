@@ -112,6 +112,40 @@ async function connectToMongoDB() {
       console.log('ℹ️ Indexes may already exist:', error.message);
     }
     
+    // Clean up duplicate null idCard values
+    try {
+      console.log('🧹 Cleaning up duplicate null idCard values...');
+      const patientsWithNullIdCard = await db.collection('patients')
+        .find({ 
+          $or: [
+            { idCard: null },
+            { idCard: '' },
+            { idCard: { $exists: false } }
+          ]
+        })
+        .toArray();
+      
+      console.log(`Found ${patientsWithNullIdCard.length} patients with null/empty idCard`);
+      
+      for (const patient of patientsWithNullIdCard) {
+        const timestamp = Date.now();
+        const randomSuffix = Math.random().toString(36).substr(2, 5);
+        const uniqueIdCard = `NO_ID_${timestamp}_${randomSuffix}`;
+        
+        await db.collection('patients').updateOne(
+          { _id: patient._id },
+          { $set: { idCard: uniqueIdCard } }
+        );
+        
+        // Small delay to ensure unique timestamps
+        await new Promise(resolve => setTimeout(resolve, 1));
+      }
+      
+      console.log('✅ Cleaned up duplicate null idCard values');
+    } catch (error) {
+      console.log('⚠️ Error cleaning up idCard values:', error.message);
+    }
+    
   } catch (error) {
     console.error('❌ MongoDB Atlas connection error:', error.message);
     console.error('Full error:', error);
@@ -654,7 +688,10 @@ app.put('/api/patients/:id', async (req, res) => {
     // Handle empty idCard
     if (updateData.idCard !== undefined) {
       if (!updateData.idCard || updateData.idCard.trim() === '') {
-        updateData.idCard = null;
+        // Instead of setting to null, generate a unique placeholder to avoid duplicate null values
+        const timestamp = Date.now();
+        const randomSuffix = Math.random().toString(36).substr(2, 5);
+        updateData.idCard = `NO_ID_${timestamp}_${randomSuffix}`;
       } else {
         // Check if another patient already has this ID card
         const existingPatient = await db.collection('patients')
@@ -666,6 +703,8 @@ app.put('/api/patients/:id', async (req, res) => {
         if (existingPatient) {
           return res.status(400).json({ error: 'มีคนไข้ที่ใช้เลขบัตรประชาชนนี้แล้ว' });
         }
+        
+        updateData.idCard = updateData.idCard.trim();
       }
     }
     
@@ -1367,28 +1406,71 @@ app.get('/api/labgroups/search/:query', async (req, res) => {
 
 // ===== ORDERS ROUTES =====
 
-// Get all orders
+// Get all orders with pagination and search support
 app.get('/api/orders', async (req, res) => {
   try {
-    const orders = await db.collection('orders')
-      .aggregate([
-        {
-          $lookup: {
-            from: 'visits',
-            localField: 'visitId',
-            foreignField: '_id',
-            as: 'visitData'
-          }
-        },
-        {
-          $addFields: {
-            visitData: { $arrayElemAt: ['$visitData', 0] }
-          }
-        },
-        {
-          $sort: { createdAt: -1 }
+    // Extract query parameters
+    const limit = parseInt(req.query.limit) || 0; // 0 means no limit
+    const skip = parseInt(req.query.skip) || 0;
+    const sortBy = req.query.sortBy || 'orderDate';
+    const sortOrder = req.query.sortOrder === 'asc' ? 1 : -1;
+    const search = req.query.search;
+
+    console.log('=== ORDERS API REQUEST ===');
+    console.log('Query params:', req.query);
+    console.log('Parsed params:', { limit, skip, sortBy, sortOrder, search });
+
+    // Build match stage for search
+    let matchStage = {};
+    if (search) {
+      const searchRegex = new RegExp(search, 'i');
+      matchStage = {
+        $or: [
+          { 'visitData.visitNumber': searchRegex },
+          { 'visitData.patientName': searchRegex },
+          { 'labOrders.testName': searchRegex },
+          { 'labOrders.name': searchRegex },
+          { 'labOrders.code': searchRegex }
+        ]
+      };
+    }
+
+    // Build aggregation pipeline
+    const pipeline = [
+      {
+        $lookup: {
+          from: 'visits',
+          localField: 'visitId',
+          foreignField: '_id',
+          as: 'visitData'
         }
-      ])
+      },
+      {
+        $addFields: {
+          visitData: { $arrayElemAt: ['$visitData', 0] }
+        }
+      }
+    ];
+
+    // Add match stage if search is provided
+    if (search) {
+      pipeline.push({ $match: matchStage });
+    }
+
+    // Add sort stage
+    const sortField = sortBy === 'orderDate' ? 'orderDate' : 'createdAt';
+    pipeline.push({ $sort: { [sortField]: sortOrder } });
+
+    // Add skip and limit stages
+    if (skip > 0) {
+      pipeline.push({ $skip: skip });
+    }
+    if (limit > 0) {
+      pipeline.push({ $limit: limit });
+    }
+
+    const orders = await db.collection('orders')
+      .aggregate(pipeline)
       .toArray();
 
     // Populate lab test details for each order
@@ -1422,6 +1504,7 @@ app.get('/api/orders', async (req, res) => {
       }
     }
     
+    console.log(`Returning ${orders.length} orders`);
     res.json(orders);
   } catch (error) {
     console.error('Error fetching orders:', error);
@@ -1905,7 +1988,7 @@ app.get('/api/dashboard/stats', async (req, res) => {
 
     const pendingResults = await db.collection('orders').countDocuments({
       createdAt: { $gte: todayStart, $lt: todayEnd },
-      status: 'process'
+      status: { $in: ['process', 'completed'] }
     });
 
     const todayRevenue = await db.collection('orders').aggregate([
@@ -1936,7 +2019,7 @@ app.get('/api/dashboard/stats', async (req, res) => {
 
     const yesterdayPendingResults = await db.collection('orders').countDocuments({
       createdAt: { $gte: yesterday, $lt: yesterdayEnd },
-      status: 'process'
+      status: { $in: ['process', 'completed'] }
     });
 
     const yesterdayRevenue = await db.collection('orders').aggregate([
@@ -2029,7 +2112,7 @@ app.get('/api/dashboard/recent-visits', async (req, res) => {
           }
         }
       },
-      { $sort: { createdAt: -1 } },
+      { $sort: { visitNumber: -1 } },
       { $limit: limit }
     ]).toArray();
 
@@ -2310,24 +2393,14 @@ app.get('/api/reports/data', async (req, res) => {
         const salesData = salesResponse.data || [];
         const itemColumns = salesResponse.itemColumns || [];
         
-        // Calculate stats for today
-        const todayStart = new Date();
-        todayStart.setHours(0, 0, 0, 0);
-        const todayEnd = new Date();
-        todayEnd.setHours(23, 59, 59, 999);
-
-        const todaySales = salesData.filter(sale => {
-          const saleDate = new Date(sale.orderDate);
-          return saleDate >= todayStart && saleDate <= todayEnd;
-        });
-
-        const todayPatients = todaySales.length;
-        const todayTests = todaySales.reduce((sum, sale) => {
+        // Calculate stats from filtered data (already filtered by date range)
+        const todayPatients = salesData.length;
+        const todayTests = salesData.reduce((sum, sale) => {
           return sum + itemColumns.reduce((itemSum, col) => {
             return itemSum + (sale[`item_${col}`] > 0 ? 1 : 0);
           }, 0);
         }, 0);
-        const todayRevenue = todaySales.reduce((sum, sale) => sum + (sale.totalAmount || 0), 0);
+        const todayRevenue = salesData.reduce((sum, sale) => sum + (sale.totalAmount || 0), 0);
 
         return res.json({
           stats: {
@@ -2457,37 +2530,36 @@ async function handleVisitorReport(req, res, { dateFrom, dateTo, department }) {
   console.log('=== VISITOR REPORT HANDLER CALLED ===');
   console.log('Parameters:', { dateFrom, dateTo, department });
   try {
-    // Set date range
+    // Set date range for Thailand timezone (UTC+7)
     let startDate, endDate;
     if (dateFrom && dateTo) {
-      startDate = new Date(dateFrom);
-      startDate.setHours(0, 0, 0, 0);
-      endDate = new Date(dateTo);
-      endDate.setHours(23, 59, 59, 999);
+      // Convert to Thailand timezone
+      startDate = new Date(dateFrom + 'T00:00:00+07:00');
+      endDate = new Date(dateTo + 'T23:59:59+07:00');
     } else {
-      // Default to last 30 days for visitor report
-      endDate = new Date();
-      endDate.setHours(23, 59, 59, 999);
-      startDate = new Date();
-      startDate.setDate(startDate.getDate() - 30);
+      // Default to today for visitor report
+      const now = new Date();
+      // Convert to Thailand timezone
+      const thailandOffset = 7 * 60 * 60 * 1000; // UTC+7 in milliseconds
+      const thailandNow = new Date(now.getTime() + thailandOffset);
+      
+      startDate = new Date(thailandNow);
       startDate.setHours(0, 0, 0, 0);
+      endDate = new Date(thailandNow);
+      endDate.setHours(23, 59, 59, 999);
     }
 
-    console.log('Date range:', { startDate, endDate });
+    console.log('Date range (Thailand timezone):', { startDate, endDate });
 
-    // Build query filter for visits
-    // Since visitDate is stored as string in format 'YYYY-MM-DD', we need to use string comparison
-    const startDateStr = startDate.toISOString().split('T')[0];
-    const endDateStr = endDate.toISOString().split('T')[0];
-    
+    // Build query filter for visits - filter by visit creation date (createdAt)
     let visitQuery = {
-      visitDate: {
-        $gte: startDateStr,
-        $lte: endDateStr
+      createdAt: {
+        $gte: startDate,
+        $lte: endDate
       }
     };
     
-    console.log('String date query:', { startDateStr, endDateStr, visitQuery });
+    console.log('Visit creation date query:', visitQuery);
 
     if (department && department !== 'all' && department !== 'ทุกหน่วยงาน') {
       // Convert underscores to spaces for department matching
@@ -2499,33 +2571,9 @@ async function handleVisitorReport(req, res, { dateFrom, dateTo, department }) {
     // Debug: Log the query
     console.log('Visitor report query:', visitQuery);
     
-    // First check if we have any visits at all
-    const totalVisits = await db.collection('visits').countDocuments();
-    const totalPatients = await db.collection('patients').countDocuments();
-    console.log('Total visits in DB:', totalVisits);
-    console.log('Total patients in DB:', totalPatients);
-    
     // Check visits in date range
     const visitsInRange = await db.collection('visits').countDocuments(visitQuery);
-    console.log('Visits in date range:', visitsInRange);
-    
-    // Sample some visits to see their structure
-    const sampleVisits = await db.collection('visits').find({}).limit(3).toArray();
-    console.log('Sample visits structure:', sampleVisits.map(v => ({
-      _id: v._id,
-      visitDate: v.visitDate,
-      patientId: v.patientId,
-      department: v.department
-    })));
-    
-    // Try different approaches to get the data
-    // First, try without date filter to see if we get any data
-    const allVisits = await db.collection('visits').find({}).limit(5).toArray();
-    console.log('All visits sample:', allVisits);
-    
-    // Try a simpler query first
-    const simpleVisits = await db.collection('visits').find(visitQuery).toArray();
-    console.log('Simple visits query result count:', simpleVisits.length);
+    console.log('Visits created in date range:', visitsInRange);
     
     // Get visits with patient data using aggregation
     const visitorData = await db.collection('visits').aggregate([
@@ -2549,9 +2597,11 @@ async function handleVisitorReport(req, res, { dateFrom, dateTo, department }) {
       { $unwind: { path: '$patient', preserveNullAndEmptyArrays: true } },
       {
         $project: {
+          visitNumber: '$visitNumber',
           referenceNumber: '$visitNumber',
           ln: '$patient.ln',
           idCard: '$patient.idCard',
+          title: '$patient.title',
           prefix: '$patient.title',
           firstName: '$patient.firstName',
           lastName: '$patient.lastName',
@@ -2566,33 +2616,37 @@ async function handleVisitorReport(req, res, { dateFrom, dateTo, department }) {
               default: '$patient.gender'
             }
           },
+          phoneNumber: '$patient.phoneNumber',
           phone: '$patient.phoneNumber',
           weight: '$weight',
           height: '$height',
           bloodPressure: '$bloodPressure',
           pulse: '$pulse',
           address: '$patient.address',
-          organization: {
-            $cond: {
-              if: { $and: [{ $ne: ['$referringOrganization', null] }, { $ne: ['$referringOrganization', ''] }] },
-              then: '$referringOrganization',
-              else: '$department'
-            }
-          },
-          otherOrganization: {
-            $cond: {
-              if: { $and: [{ $ne: ['$referringOrganization', null] }, { $ne: ['$referringOrganization', ''] }] },
-              then: '$referringOrganization',
-              else: null
-            }
-          },
+          department: '$department',
+          referringOrganization: '$referringOrganization',
+          organization: '$referringOrganization',
+          patientRights: '$patientRights',
           rights: '$patientRights',
-          patientCreatedAt: '$patient.createdAt',
-          visitDate: '$visitDate',
-          department: '$department'
+          // Convert createdAt to Thailand timezone for display
+          patientCreatedAt: {
+            $dateToString: {
+              format: '%Y-%m-%d',
+              date: '$patient.createdAt',
+              timezone: 'Asia/Bangkok'
+            }
+          },
+          // Convert visit createdAt to Thailand timezone for display
+          visitDate: {
+            $dateToString: {
+              format: '%Y-%m-%d',
+              date: '$createdAt',
+              timezone: 'Asia/Bangkok'
+            }
+          }
         }
       },
-      { $sort: { visitDate: -1 } }
+      { $sort: { visitNumber: -1 } }
     ]).toArray();
 
     // Debug: Log the results
@@ -2601,17 +2655,33 @@ async function handleVisitorReport(req, res, { dateFrom, dateTo, department }) {
       console.log('Sample visitor data:', JSON.stringify(visitorData, null, 2));
     }
 
-    // Calculate basic stats
+    // Calculate basic stats based on filtered data
     const totalVisitors = visitorData.length;
-    const todayStart = new Date();
+    
+    // For today's stats, use Thailand timezone
+    const now = new Date();
+    const thailandOffset = 7 * 60 * 60 * 1000; // UTC+7 in milliseconds
+    const thailandNow = new Date(now.getTime() + thailandOffset);
+    
+    const todayStart = new Date(thailandNow);
     todayStart.setHours(0, 0, 0, 0);
-    const todayEnd = new Date();
+    const todayEnd = new Date(thailandNow);
     todayEnd.setHours(23, 59, 59, 999);
 
-    const todayVisitors = visitorData.filter(v => {
-      const visitDate = new Date(v.visitDate);
-      return visitDate >= todayStart && visitDate <= todayEnd;
-    }).length;
+    // Count visits created today (in Thailand timezone)
+    const todayVisitQuery = {
+      createdAt: {
+        $gte: todayStart,
+        $lte: todayEnd
+      }
+    };
+    
+    if (department && department !== 'all' && department !== 'ทุกหน่วยงาน') {
+      const normalizedDepartment = department.replace(/_/g, ' ');
+      todayVisitQuery.department = normalizedDepartment;
+    }
+    
+    const todayVisitors = await db.collection('visits').countDocuments(todayVisitQuery);
 
     res.json({
       stats: {
@@ -2779,37 +2849,34 @@ async function getVisitorReportData({ dateFrom, dateTo, department }) {
   }
 
   try {
+    // Set date range for Thailand timezone (UTC+7) - same as handleVisitorReport
     let startDate, endDate;
     if (dateFrom && dateTo) {
-      startDate = new Date(dateFrom);
+      // Convert to Thailand timezone
+      startDate = new Date(dateFrom + 'T00:00:00+07:00');
+      endDate = new Date(dateTo + 'T23:59:59+07:00');
+    } else {
+      // Default to today for visitor report
+      const now = new Date();
+      // Convert to Thailand timezone
+      const thailandOffset = 7 * 60 * 60 * 1000; // UTC+7 in milliseconds
+      const thailandNow = new Date(now.getTime() + thailandOffset);
+      
+      startDate = new Date(thailandNow);
       startDate.setHours(0, 0, 0, 0);
-      endDate = new Date(dateTo);
+      endDate = new Date(thailandNow);
       endDate.setHours(23, 59, 59, 999);
     }
 
-    // Build match criteria - focus on visit number first
-    let matchCriteria = {};
-    
-    // If no date range specified, don't filter by date
-    if (startDate && endDate) {
-      // Simple date filtering - try multiple date fields
-      matchCriteria.$or = [
-        { date: { $gte: startDate, $lte: endDate } },
-        { createdAt: { $gte: startDate, $lte: endDate } }
-      ];
-      
-      // For visitDate string field, use regex pattern matching for YYYY-MM-DD format
-      const startDateStr = startDate.toISOString().split('T')[0];
-      const endDateStr = endDate.toISOString().split('T')[0];
-      
-      // Add visitDate string comparison
-      matchCriteria.$or.push({
-        visitDate: {
-          $gte: startDateStr,
-          $lte: endDateStr
-        }
-      });
-    }
+    console.log('Excel export date range (Thailand timezone):', { startDate, endDate });
+
+    // Build match criteria - filter by visit creation date (createdAt)
+    let matchCriteria = {
+      createdAt: {
+        $gte: startDate,
+        $lte: endDate
+      }
+    };
     
     // Only filter by department if it's specified and not "all" or "ทุกหน่วยงาน"
     if (department && department !== 'all' && department !== 'ทุกหน่วยงาน') {
@@ -2819,133 +2886,83 @@ async function getVisitorReportData({ dateFrom, dateTo, department }) {
       console.log(`Department filter: '${department}' -> '${normalizedDepartment}'`);
     }
 
-    console.log('Match criteria:', matchCriteria);
+    console.log('Excel export match criteria:', matchCriteria);
 
-    // Get visits with visit numbers - try different sort options
-    let visits;
-    try {
-      visits = await db.collection('visits').find(matchCriteria).sort({ visitNumber: -1 }).toArray();
-    } catch (error) {
-      console.log('Sort by visitNumber failed, trying createdAt:', error.message);
-      visits = await db.collection('visits').find(matchCriteria).sort({ createdAt: -1 }).toArray();
-    }
-    
-    console.log('Found visits:', visits.length);
-    console.log('Match criteria used:', JSON.stringify(matchCriteria, null, 2));
-    console.log('Date range:', { startDate, endDate });
-    
-    if (visits.length > 0) {
-      console.log('Sample visit structure:', {
-        visitNumber: visits[0].visitNumber,
-        patientId: visits[0].patientId,
-        visitDate: visits[0].visitDate,
-        date: visits[0].date,
-        createdAt: visits[0].createdAt,
-        allFields: Object.keys(visits[0])
-      });
-    }
-    
-    // Debug: Check total visits in database without filters
-    const totalVisits = await db.collection('visits').countDocuments();
-    console.log('Total visits in database:', totalVisits);
-    
-    // Debug: Check what date fields exist in all visits
-    const allVisits = await db.collection('visits').find({}).limit(5).toArray();
-    console.log('All visits date fields:');
-    allVisits.forEach((visit, index) => {
-      console.log(`Visit ${index + 1}:`, {
-        visitNumber: visit.visitNumber,
-        date: visit.date,
-        visitDate: visit.visitDate,
-        createdAt: visit.createdAt,
-        hasDate: !!visit.date,
-        hasVisitDate: !!visit.visitDate,
-        hasCreatedAt: !!visit.createdAt
-      });
-    });
-
-    // For each visit, get the corresponding patient data
-    const visitsWithPatients = [];
-    for (const visit of visits) {
-      let patientData = null;
-      
-      if (visit.patientId) {
-        try {
-          // Try to find patient by ObjectId first
-          if (typeof visit.patientId === 'string' && visit.patientId.length === 24) {
-            patientData = await db.collection('patients').findOne({ _id: new ObjectId(visit.patientId) });
-          }
-          
-          // If not found, try as string
-          if (!patientData) {
-            patientData = await db.collection('patients').findOne({ _id: visit.patientId });
-          }
-          
-          // If still not found, try by patient ID field
-          if (!patientData && visit.patientId) {
-            patientData = await db.collection('patients').findOne({ patientId: visit.patientId });
-          }
-        } catch (error) {
-          console.log('Error finding patient for visit:', visit.visitNumber, error.message);
+    // Use aggregation pipeline to get visits with patient data - same as handleVisitorReport
+    const visitorData = await db.collection('visits').aggregate([
+      { $match: matchCriteria },
+      {
+        $lookup: {
+          from: 'patients',
+          let: { patientIdStr: '$patientId' },
+          pipeline: [
+            {
+              $match: {
+                $expr: {
+                  $eq: ['$_id', { $toObjectId: '$$patientIdStr' }]
+                }
+              }
+            }
+          ],
+          as: 'patient'
         }
-      }
-      
-      visitsWithPatients.push({
-        ...visit,
-        patientData: patientData
-      });
-    }
+      },
+      { $unwind: { path: '$patient', preserveNullAndEmptyArrays: true } },
+      {
+        $project: {
+          visitNumber: '$visitNumber',
+          referenceNumber: '$visitNumber',
+          ln: '$patient.ln',
+          idCard: '$patient.idCard',
+          title: '$patient.title',
+          prefix: '$patient.title',
+          firstName: '$patient.firstName',
+          lastName: '$patient.lastName',
+          age: '$patient.age',
+          birthdate: '$patient.birthDate',
+          gender: {
+            $switch: {
+              branches: [
+                { case: { $eq: ['$patient.gender', 'male'] }, then: 'ชาย' },
+                { case: { $eq: ['$patient.gender', 'female'] }, then: 'หญิง' }
+              ],
+              default: '$patient.gender'
+            }
+          },
+          phoneNumber: '$patient.phoneNumber',
+          phone: '$patient.phoneNumber',
+          weight: '$weight',
+          height: '$height',
+          bloodPressure: '$bloodPressure',
+          pulse: '$pulse',
+          address: '$patient.address',
+          department: '$department',
+          referringOrganization: '$referringOrganization',
+          organization: '$referringOrganization',
+          patientRights: '$patientRights',
+          rights: '$patientRights',
+          // Convert createdAt to Thailand timezone for display
+          patientCreatedAt: {
+            $dateToString: {
+              format: '%Y-%m-%d',
+              date: '$patient.createdAt',
+              timezone: 'Asia/Bangkok'
+            }
+          },
+          // Convert visit createdAt to Thailand timezone for display
+          visitDate: {
+            $dateToString: {
+              format: '%Y-%m-%d',
+              date: '$createdAt',
+              timezone: 'Asia/Bangkok'
+            }
+          }
+        }
+      },
+      { $sort: { visitNumber: -1 } }
+    ]).toArray();
 
-    console.log('Visits with patient data:', visitsWithPatients.length);
-
-    // Map visits to visitor data format
-    const visitorData = visitsWithPatients.map(visit => {
-      const patient = visit.patientData || {};
-      const vitalSigns = visit.vitalSigns || {};
-      
-      console.log('Processing visit:', {
-        visitNumber: visit.visitNumber,
-        patientId: visit.patientId,
-        hasPatientData: !!visit.patientData,
-        patientFields: visit.patientData ? Object.keys(visit.patientData) : [],
-        patientBirthDate: visit.patientData?.birthDate,
-        patientBirthdate: visit.patientData?.birthdate,
-        patientDateOfBirth: visit.patientData?.dateOfBirth
-      });
-      
-      return {
-        visitNumber: visit.visitNumber || visit.referenceNumber || visit._id?.toString() || '-',
-        ln: patient.ln || '-',
-        idCard: patient.idCard || '-',
-        title: patient.title || '-',
-        firstName: patient.firstName || '-',
-        lastName: patient.lastName || '-',
-        age: patient.age || (patient.birthdate ? calculateAge(patient.birthdate) : 
-              patient.birthDate ? calculateAge(patient.birthDate) : 0),
-        birthdate: patient.birthDate ? formatThaiDate(patient.birthDate) : 
-                   patient.birthdate ? formatThaiDate(patient.birthdate) :
-                   patient.dateOfBirth ? formatThaiDate(patient.dateOfBirth) :
-                   patient.dob ? formatThaiDate(patient.dob) : '-',
-        gender: patient.gender === 'male' ? 'ชาย' : 
-                patient.gender === 'female' ? 'หญิง' : 
-                patient.gender === 'ชาย' ? 'ชาย' :
-                patient.gender === 'หญิง' ? 'หญิง' :
-                patient.gender || '-',
-        phoneNumber: patient.phoneNumber || '-',
-        weight: visit.weight || '-',
-        height: visit.height || '-',
-        bloodPressure: visit.bloodPressure || '-',
-        pulse: visit.pulse || '-',
-        address: patient.address || '-',
-        department: visit.department || '-',
-        referringOrganization: visit.referringOrganization || '-',
-        patientRights: visit.patientRights || '-',
-        patientCreatedAt: patient.createdAt ? formatThaiDate(patient.createdAt) : '-',
-        visitDate: visit.visitDate ? formatThaiDate(visit.visitDate) : 
-                   visit.date ? formatThaiDate(visit.date) :
-                   visit.createdAt ? formatThaiDate(visit.createdAt) : '-'
-      };
-    });
+    console.log('Excel export visitor data count:', visitorData.length);
 
     console.log('VTS data sample for Excel:', visitorData.length > 0 ? {
       visitNumber: visitorData[0].visitNumber,
@@ -2971,23 +2988,35 @@ async function getSalesReportData({ dateFrom, dateTo, department }) {
   console.log('Department length:', department ? department.length : 'null');
 
   try {
+    // Set date range for Thailand timezone (UTC+7) - same as VTS Report
     let startDate, endDate;
     if (dateFrom && dateTo) {
-      startDate = new Date(dateFrom);
+      // Convert to Thailand timezone
+      startDate = new Date(dateFrom + 'T00:00:00+07:00');
+      endDate = new Date(dateTo + 'T23:59:59+07:00');
+    } else {
+      // Default to today for sales report
+      const now = new Date();
+      // Convert to Thailand timezone
+      const thailandOffset = 7 * 60 * 60 * 1000; // UTC+7 in milliseconds
+      const thailandNow = new Date(now.getTime() + thailandOffset);
+      
+      startDate = new Date(thailandNow);
       startDate.setHours(0, 0, 0, 0);
-      endDate = new Date(dateTo);
+      endDate = new Date(thailandNow);
       endDate.setHours(23, 59, 59, 999);
     }
 
-    // Build match criteria similar to visitor report
-    let matchCriteria = {};
-    
-    if (startDate && endDate) {
-      matchCriteria.$or = [
-        { orderDate: { $gte: startDate, $lte: endDate } },
-        { createdAt: { $gte: startDate, $lte: endDate } }
-      ];
-    }
+    console.log('Sales report date range (Thailand timezone):', { startDate, endDate });
+
+    // Build match criteria - filter by order creation date (createdAt) and status
+    let matchCriteria = {
+      createdAt: {
+        $gte: startDate,
+        $lte: endDate
+      },
+      status: { $in: ['process', 'completed'] }
+    };
 
     // Note: Department filtering will be done after joining with visits data
     // since department field is in visits collection, not orders collection

@@ -881,32 +881,47 @@ ipcMain.handle('print-sticker', async (event, options) => {
     console.log('Main process: print-sticker called');
     console.log('Raw options received:', JSON.stringify(options, null, 2));
     
-    const { printerName, content, ...printOptions } = options;
+    // Handle both parameter formats: { printerName, content } and { printerName, htmlContent }
+    const printerName = options.printerName || '';
+    const content = options.htmlContent || options.content || '';
     
     console.log('Printer name:', printerName);
     console.log('Content type:', typeof content);
     console.log('Content length:', content?.length);
-    console.log('Content preview:', content?.substring(0, 100));
+    console.log('Content preview:', content?.substring(0, 200));
     
-    // Use Electron's webContents.print() instead of temp files
+    if (!content) {
+      console.error('❌ No content provided for sticker printing');
+      throw new Error('ไม่พบเนื้อหาสติ๊กเกอร์ที่จะพิมพ์');
+    }
+
+    if (!printerName) {
+      console.warn('⚠️ No printer name provided, will use default printer');
+    }
+    
+    // Optimized print options for sticker printing
     const electronPrintOptions = {
-      silent: printerName ? true : false, // Silent if printer specified, show dialog if not
+      silent: printerName ? true : false, // Silent if printer specified
       printBackground: true,
-      deviceName: printerName || '', // Use specified printer
+      color: false, // Use black and white for better compatibility
+      deviceName: printerName || '',
       margins: {
         marginType: 'custom',
-        top: 0.1,
-        bottom: 0.1,
-        left: 0.1,
-        right: 0.1
+        top: 0,
+        bottom: 0,
+        left: 0,
+        right: 0
       },
       pageSize: {
-        width: 105000, // 105mm in microns
-        height: 25000  // 25mm in microns
-      }
+        width: 103000, // 103mm in microns (sticker width)
+        height: 25000  // 25mm in microns (sticker height)
+      },
+      scaleFactor: 100,
+      headerFooter: false
     };
     
     console.log('Print options:', electronPrintOptions);
+    console.log(`🎯 Printing sticker to configured printer: ${printerName || 'Default printer'}`);
     
     // Create a new window for printing
     const printWindow = new BrowserWindow({
@@ -917,21 +932,20 @@ ipcMain.handle('print-sticker', async (event, options) => {
       }
     });
     
-    const htmlContent = `
-      <!DOCTYPE html>
-      <html>
-      <head>
-        <meta charset="UTF-8">
-        <style>
-          @page { size: 4in 6in; margin: 0.1in; }
-          body { margin: 0; padding: 10px; font-family: Arial; font-size: 12px; }
-        </style>
-      </head>
-      <body>${content}</body>
-      </html>
-    `;
+    // Load the HTML content directly (stickerPrinter.ts already provides complete HTML)
+    await printWindow.loadURL(`data:text/html;charset=utf-8,${encodeURIComponent(content)}`);
     
-    await printWindow.loadURL(`data:text/html;charset=utf-8,${encodeURIComponent(htmlContent)}`);
+    // Wait for content to fully load
+    await new Promise(resolve => {
+      if (printWindow.webContents.isLoading()) {
+        printWindow.webContents.once('did-finish-load', resolve);
+      } else {
+        resolve(true);
+      }
+    });
+    
+    // Additional wait for any dynamic content (barcodes, etc.)
+    await new Promise(resolve => setTimeout(resolve, 2000));
     
     return new Promise((resolve) => {
       printWindow.webContents.print(electronPrintOptions, (success, failureReason) => {
@@ -940,9 +954,12 @@ ipcMain.handle('print-sticker', async (event, options) => {
           const message = printerName ? 
             `พิมพ์สติ๊กเกอร์ไปยัง ${printerName} สำเร็จ` : 
             'พิมพ์สติ๊กเกอร์สำเร็จ';
+          console.log('✅ Sticker print success:', message);
           resolve({ success: true, message });
         } else {
-          resolve({ success: false, message: `เกิดข้อผิดพลาด: ${failureReason}` });
+          const errorMessage = `เกิดข้อผิดพลาดในการพิมพ์: ${failureReason || 'ไม่ทราบสาเหตุ'}`;
+          console.error('❌ Sticker print failed:', errorMessage);
+          resolve({ success: false, message: errorMessage });
         }
       });
     });

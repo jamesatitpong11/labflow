@@ -93,23 +93,24 @@ async function getLabReportData({ dateFrom, dateTo, department }) {
     
     console.log('Generating lab report with params:', { dateFrom, dateTo, department });
 
-    // Set date range - handle both Date objects and string dates
+    // Set date range for Thailand timezone (UTC+7) - same as other reports
     let startDate, endDate;
     if (dateFrom && dateTo) {
-      startDate = new Date(dateFrom);
-      startDate.setHours(0, 0, 0, 0); // Start of day
-      endDate = new Date(dateTo);
-      endDate.setHours(23, 59, 59, 999); // End of day
+      // Convert to Thailand timezone
+      startDate = new Date(dateFrom + 'T00:00:00+07:00');
+      endDate = new Date(dateTo + 'T23:59:59+07:00');
     } else {
-      // Default to last 30 days
-      endDate = new Date();
-      startDate = new Date();
-      startDate.setDate(startDate.getDate() - 30);
+      // Default to today for lab report
+      const now = new Date();
+      // Convert to Thailand timezone
+      const thailandOffset = 7 * 60 * 60 * 1000; // UTC+7 in milliseconds
+      const thailandNow = new Date(now.getTime() + thailandOffset);
+      
+      startDate = new Date(thailandNow);
+      startDate.setHours(0, 0, 0, 0);
+      endDate = new Date(thailandNow);
+      endDate.setHours(23, 59, 59, 999);
     }
-    
-    // Also check for visits with string dates (YYYY-MM-DD format)
-    const dateFromStr = dateFrom || startDate.toISOString().split('T')[0];
-    const dateToStr = dateTo || endDate.toISOString().split('T')[0];
 
     console.log('Date range:', { startDate, endDate });
 
@@ -130,23 +131,13 @@ async function getLabReportData({ dateFrom, dateTo, department }) {
 
     // Build aggregation pipeline to get visits with patient data and sales data
     const pipeline = [
-      // Match visits in date range - handle both Date objects and string dates
+      // Match visits by creation date - same as other reports
       {
         $match: {
-          $or: [
-            {
-              visitDate: {
-                $gte: startDate,
-                $lte: endDate
-              }
-            },
-            {
-              visitDate: {
-                $gte: dateFromStr,
-                $lte: dateToStr
-              }
-            }
-          ]
+          createdAt: {
+            $gte: startDate,
+            $lte: endDate
+          }
         }
       },
       {
@@ -170,21 +161,35 @@ async function getLabReportData({ dateFrom, dateTo, department }) {
           preserveNullAndEmptyArrays: true
         }
       },
-      // Lookup sales/orders for this visit to see what was purchased
+      // Lookup sales/orders for this visit - filter by status (process + completed)
       {
         $lookup: {
           from: 'orders',
-          localField: 'visitNumber',
-          foreignField: 'visitNumber',
+          let: { visitNum: '$visitNumber' },
+          pipeline: [
+            {
+              $match: {
+                $expr: { $eq: ['$visitNumber', '$$visitNum'] },
+                status: { $in: ['process', 'completed'] }
+              }
+            }
+          ],
           as: 'orders'
         }
       },
-      // Also try lookup by visitId for newer data structure
+      // Also try lookup by visitId for newer data structure - filter by status
       {
         $lookup: {
           from: 'orders',
-          localField: '_id',
-          foreignField: 'visitId',
+          let: { visitId: '$_id' },
+          pipeline: [
+            {
+              $match: {
+                $expr: { $eq: ['$visitId', '$$visitId'] },
+                status: { $in: ['process', 'completed'] }
+              }
+            }
+          ],
           as: 'ordersByVisitId'
         }
       },

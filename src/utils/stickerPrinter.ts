@@ -4,178 +4,358 @@ export interface PatientStickerData {
   title: string;
   firstName: string;
   lastName: string;
+  visitNumber: string;
+  ln: string;
+  age: string;
+  visitDate: string;
+  visitTime: string;
   printerName?: string;
 }
 
-// Generate simple barcode using Code 128 pattern
+// Generate barcode using JsBarcode
 export function generateBarcode(text: string): string {
-  // Simple barcode generation - creates a pattern of bars
-  // In production, you might want to use a proper barcode library
+  try {
+    // Check if JsBarcode is available
+    if (typeof window !== 'undefined' && (window as any).JsBarcode) {
+      const canvas = document.createElement('canvas');
+      (window as any).JsBarcode(canvas, text, {
+        format: "CODE128",
+        width: 2,
+        height: 50,
+        displayValue: false,
+        margin: 2,
+        background: "#ffffff",
+        lineColor: "#000000",
+        fontSize: 0,
+        textMargin: 0
+      });
+      return canvas.toDataURL('image/png', 1.0);
+    }
+  } catch (error) {
+    console.warn('JsBarcode not available, using fallback:', error);
+  }
+  
+  // Fallback: Better barcode generation
+  return generateFallbackBarcode(text);
+}
+
+// Fallback barcode generation - Code 128 pattern
+function generateFallbackBarcode(text: string): string {
   const canvas = document.createElement('canvas');
   const ctx = canvas.getContext('2d');
   
   if (!ctx) return '';
   
-  // Set canvas size for barcode
-  canvas.width = 200;
-  canvas.height = 50;
+  canvas.width = 300;
+  canvas.height = 60;
   
-  // Clear canvas
+  // Clear canvas with white background
   ctx.fillStyle = 'white';
   ctx.fillRect(0, 0, canvas.width, canvas.height);
   
-  // Draw barcode bars
-  ctx.fillStyle = 'black';
-  const barWidth = 2;
-  const spacing = 1;
+  // Code 128 Start B pattern
+  const startB = [2, 1, 1, 4, 1, 2];
+  // Code 128 Stop pattern  
+  const stop = [2, 3, 3, 1, 1, 1, 2];
   
+  // Simple character encoding for Code 128
+  const getCharPattern = (char: string): number[] => {
+    const code = char.charCodeAt(0);
+    const patterns = [
+      [2, 1, 2, 1, 2, 2], [1, 2, 2, 1, 2, 2], [2, 2, 1, 1, 2, 2],
+      [1, 1, 2, 2, 2, 2], [2, 1, 1, 2, 2, 2], [1, 2, 1, 2, 2, 2],
+      [1, 1, 1, 3, 2, 2], [1, 3, 1, 1, 2, 2], [3, 1, 1, 1, 2, 2],
+      [1, 1, 3, 1, 2, 2], [3, 1, 1, 3, 1, 1], [1, 1, 2, 3, 2, 1],
+      [1, 2, 2, 3, 1, 1], [2, 2, 1, 3, 1, 1], [2, 3, 1, 1, 1, 2]
+    ];
+    return patterns[code % patterns.length];
+  };
+  
+  ctx.fillStyle = 'black';
+  let x = 10;
+  const barHeight = 40;
+  const barTop = 10;
+  const moduleWidth = 1.5;
+  
+  // Draw start pattern
+  for (let i = 0; i < startB.length; i++) {
+    const width = startB[i] * moduleWidth;
+    if (i % 2 === 0) {
+      ctx.fillRect(x, barTop, width, barHeight);
+    }
+    x += width;
+  }
+  
+  // Draw data
   for (let i = 0; i < text.length; i++) {
-    const charCode = text.charCodeAt(i);
-    const pattern = charCode % 10; // Simple pattern based on character
-    
-    for (let j = 0; j < pattern; j++) {
-      const x = (i * 10) + (j * (barWidth + spacing));
-      if (x < canvas.width - barWidth) {
-        ctx.fillRect(x, 5, barWidth, 40);
+    const pattern = getCharPattern(text[i]);
+    for (let j = 0; j < pattern.length; j++) {
+      const width = pattern[j] * moduleWidth;
+      if (j % 2 === 0) {
+        ctx.fillRect(x, barTop, width, barHeight);
       }
+      x += width;
     }
   }
   
-  return canvas.toDataURL();
+  // Draw stop pattern
+  for (let i = 0; i < stop.length; i++) {
+    const width = stop[i] * moduleWidth;
+    if (i % 2 === 0) {
+      ctx.fillRect(x, barTop, width, barHeight);
+    }
+    x += width;
+  }
+  
+  return canvas.toDataURL('image/png', 1.0);
 }
 
 // Create HTML template for sticker printing (3 labels per sheet)
 export function createStickerHTML(data: PatientStickerData): string {
-  const barcodeDataUrl = generateBarcode(data.idCard);
-  
-  return `
-    <!DOCTYPE html>
-    <html>
-    <head>
-      <meta charset="UTF-8">
-      <title>Patient Sticker</title>
-      <style>
-        @page {
-          size: 10.5cm 2.5cm;
-          margin: 0;
-        }
-        
-        body {
-          margin: 0;
-          padding: 0;
-          font-family: 'THSarabunNew', 'TH Sarabun New', 'Sarabun', Arial, sans-serif;
-          width: 10.5cm;
-          height: 2.5cm;
-          background: white;
-          display: flex;
-          align-items: center;
-          justify-content: space-between;
-          box-sizing: border-box;
-        }
-        
-        .sticker-sheet {
-          width: 100%;
-          height: 100%;
-          display: flex;
-          align-items: center;
-          justify-content: flex-start;
-          gap: 0.3cm;
-          padding: 0 0.15cm;
-          box-sizing: border-box;
-        }
-        
-        .sticker-label {
-          width: 3.2cm;
-          height: 2.2cm;
-          border: 1px solid #ddd;
-          padding: 1mm;
-          box-sizing: border-box;
-          display: flex;
-          flex-direction: column;
-          justify-content: space-between;
-          background: white;
-        }
-        
-        .clinic-name {
-          font-size: 8px;
-          font-weight: bold;
-          text-align: center;
-          margin-bottom: 1mm;
-          color: #333;
-        }
-        
-        .patient-info {
-          flex: 1;
-          display: flex;
-          flex-direction: column;
-          justify-content: center;
-        }
-        
-        .patient-name {
-          font-size: 9px;
-          font-weight: bold;
-          margin-bottom: 0.5mm;
-          color: #000;
-          text-align: center;
-        }
-        
-        .patient-id {
-          font-size: 8px;
-          margin-bottom: 1mm;
-          color: #666;
-          text-align: center;
-        }
-        
-        .barcode-container {
-          text-align: center;
-          margin-top: 1mm;
-        }
-        
-        .barcode {
-          max-width: 100%;
-          height: 6mm;
-          object-fit: contain;
-        }
-      </style>
-    </head>
-    <body>
-      <div class="sticker-sheet">
-        <div class="sticker-label">
-          <div class="clinic-name">LabFlow Clinic</div>
-          <div class="patient-info">
-            <div class="patient-name">${data.title}${data.firstName} ${data.lastName}</div>
-            <div class="patient-id">ID: ${data.idCard}</div>
-          </div>
-          <div class="barcode-container">
-            <img src="${barcodeDataUrl}" alt="Barcode" class="barcode">
-          </div>
-        </div>
-        
-        <div class="sticker-label">
-          <div class="clinic-name">LabFlow Clinic</div>
-          <div class="patient-info">
-            <div class="patient-name">${data.title}${data.firstName} ${data.lastName}</div>
-            <div class="patient-id">ID: ${data.idCard}</div>
-          </div>
-          <div class="barcode-container">
-            <img src="${barcodeDataUrl}" alt="Barcode" class="barcode">
-          </div>
-        </div>
-        
-        <div class="sticker-label">
-          <div class="clinic-name">LabFlow Clinic</div>
-          <div class="patient-info">
-            <div class="patient-name">${data.title}${data.firstName} ${data.lastName}</div>
-            <div class="patient-id">ID: ${data.idCard}</div>
-          </div>
-          <div class="barcode-container">
-            <img src="${barcodeDataUrl}" alt="Barcode" class="barcode">
-          </div>
+  return `<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>สติ๊กเกอร์ - ${data.visitNumber}</title>
+  <link href="https://fonts.googleapis.com/css2?family=Itim&display=swap" rel="stylesheet">
+  <script src="https://cdn.jsdelivr.net/npm/jsbarcode@3.11.5/dist/JsBarcode.all.min.js"></script>
+  <style>
+    @page {
+      size: 103mm 25mm;
+      margin: 0mm;
+    }
+    @media print {
+      * {
+        -webkit-print-color-adjust: exact !important;
+        color-adjust: exact !important;
+        print-color-adjust: exact !important;
+      }
+    }
+    body { 
+      font-family: 'TH Sarabun New', 'THSarabunNew', 'Itim', 'Arial', sans-serif; 
+      margin: 0;
+      padding: 0;
+      font-size: 8px; 
+      line-height: 0.8;
+      width: 100%;
+      height: 100%;
+      box-sizing: border-box;
+      -webkit-font-smoothing: antialiased;
+      -moz-osx-font-smoothing: grayscale;
+      text-rendering: optimizeLegibility;
+      image-rendering: -webkit-optimize-contrast;
+      image-rendering: crisp-edges;
+    }
+    .page-container {
+      width: 103mm;
+      height: 25mm;
+      display: flex;
+      padding: 0;
+      margin: 0;
+      align-items: center;
+      box-sizing: border-box;
+    }
+    .sticker {
+      width: 32mm;
+      height: 25mm;
+      padding: 1mm;
+      box-sizing: border-box;
+      display: flex;
+      text-align: left;
+      font-size: 6px;
+      line-height: 1.1;
+      background: white;
+      position: relative;
+    }
+    .sticker:nth-child(1) {
+      margin-left: 2mm;
+    }
+    .sticker:nth-child(2) {
+      margin-left: 2mm;
+    }
+    .sticker:nth-child(3) {
+      margin-left: 2mm;
+      margin-right: 0.2mm;
+    }
+    .visit-number-vertical {
+      position: absolute;
+      left: 0.5mm;
+      top: 1mm;
+      bottom: 1mm;
+      width: 3mm;
+      writing-mode: vertical-rl;
+      text-orientation: mixed;
+      font-size: 7pt;
+      font-weight: bold;
+      color: black;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    .content-area {
+      flex: 1;
+      margin-left: 4mm;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      padding: 0.5mm 0;
+    }
+    .ln-number {
+      font-size: 10pt;
+      font-weight: bold;
+      text-align: left;
+      margin-bottom: 0.5mm;
+      color: #000000;
+      line-height: 0.9;
+    }
+    .patient-title-name {
+      font-size: 10pt;
+      font-weight: bold;
+      text-align: left;
+      line-height: 0.9;
+      margin-bottom: 0.5mm;
+      color: #000000;
+    }
+    .patient-lastname {
+      font-size: 10pt;
+      font-weight: bold;
+      text-align: left;
+      line-height: 0.9;
+      margin-bottom: 0.5mm;
+      color: #000000;
+    }
+    .visit-info {
+      font-size: 8pt;
+      font-weight: bold;
+      text-align: left;
+      line-height: 0.9;
+      margin-bottom: 0.5mm;
+      width: 100%;
+      color: #000000;
+    }
+    .barcode {
+      height: 6mm;
+      width: 90%;
+      margin: 0 auto;
+      background: white;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      image-rendering: -webkit-optimize-contrast;
+      image-rendering: crisp-edges;
+    }
+    .barcode svg {
+      height: 6mm;
+      width: 100%;
+      shape-rendering: crispEdges;
+      image-rendering: -webkit-optimize-contrast;
+      image-rendering: crisp-edges;
+    }
+  </style>
+</head>
+<body>
+  <div class="page-container">
+    <!-- Sticker 1 -->
+    <div class="sticker">
+      <div class="visit-number-vertical">${data.visitNumber}</div>
+      <div class="content-area">
+        <div class="ln-number">LN: ${data.ln || 'N/A'}</div>
+        <div class="patient-title-name">${data.title}${data.firstName}</div>
+        <div class="patient-lastname">${data.lastName}</div>
+        <div class="visit-info">อายุ ${data.age} ปี ${data.visitTime || 'N/A'}</div>
+        <div class="barcode">
+          <svg id="barcode1"></svg>
         </div>
       </div>
-    </body>
-    </html>
-  `;
+    </div>
+    
+    <!-- Sticker 2 -->
+    <div class="sticker">
+      <div class="visit-number-vertical">${data.visitNumber}</div>
+      <div class="content-area">
+        <div class="ln-number">LN: ${data.ln || 'N/A'}</div>
+        <div class="patient-title-name">${data.title}${data.firstName}</div>
+        <div class="patient-lastname">${data.lastName}</div>
+        <div class="visit-info">อายุ ${data.age} ปี ${data.visitTime || 'N/A'}</div>
+        <div class="barcode">
+          <svg id="barcode2"></svg>
+        </div>
+      </div>
+    </div>
+    
+    <!-- Sticker 3 -->
+    <div class="sticker">
+      <div class="visit-number-vertical">${data.visitNumber}</div>
+      <div class="content-area">
+        <div class="ln-number">LN: ${data.ln || 'N/A'}</div>
+        <div class="patient-title-name">${data.title}${data.firstName}</div>
+        <div class="patient-lastname">${data.lastName}</div>
+        <div class="visit-info">อายุ ${data.age} ปี ${data.visitTime || 'N/A'}</div>
+        <div class="barcode">
+          <svg id="barcode3"></svg>
+        </div>
+      </div>
+    </div>
+  </div>
+  
+  <script>
+    function generateBarcodes() {
+      try {
+        if (typeof JsBarcode !== 'undefined') {
+          // Generate barcodes for all three stickers
+          JsBarcode("#barcode1", "${data.visitNumber}", {
+            format: "CODE128",
+            width: 1.2,
+            height: 20,
+            displayValue: false,
+            margin: 0,
+            background: "#ffffff",
+            lineColor: "#000000"
+          });
+          
+          JsBarcode("#barcode2", "${data.visitNumber}", {
+            format: "CODE128",
+            width: 1.2,
+            height: 20,
+            displayValue: false,
+            margin: 0,
+            background: "#ffffff",
+            lineColor: "#000000"
+          });
+          
+          JsBarcode("#barcode3", "${data.visitNumber}", {
+            format: "CODE128",
+            width: 1.2,
+            height: 20,
+            displayValue: false,
+            margin: 0,
+            background: "#ffffff",
+            lineColor: "#000000"
+          });
+        } else {
+          // Fallback if JsBarcode is not loaded
+          console.log('JsBarcode not loaded, retrying...');
+          setTimeout(generateBarcodes, 100);
+        }
+      } catch (error) {
+        console.error('Error generating barcode:', error);
+      }
+    }
+    
+    // Try multiple ways to ensure the script runs
+    if (document.readyState === 'loading') {
+      document.addEventListener('DOMContentLoaded', generateBarcodes);
+    } else {
+      generateBarcodes();
+    }
+    
+    window.onload = generateBarcodes;
+    
+    // Additional fallback
+    setTimeout(generateBarcodes, 500);
+  </script>
+</body>
+</html>`;
 }
 
 // Print sticker function
@@ -184,26 +364,43 @@ export async function printSticker(data: PatientStickerData): Promise<boolean> {
     // Create sticker HTML
     const stickerHTML = createStickerHTML(data);
     
+    // Check if we're in Electron environment
+    const isElectron = typeof window !== 'undefined' && window.electronAPI;
+    const hasElectronPrint = isElectron && typeof window.electronAPI.printSticker === 'function';
+    
+    console.log('🖨️ Print environment check:', {
+      isElectron,
+      hasElectronPrint,
+      printerName: data.printerName,
+      electronAPI: !!window.electronAPI
+    });
+
     // If running in Electron, use direct printing
-    if (window.electronAPI && window.electronAPI.printSticker && data.printerName) {
+    if (hasElectronPrint && data.printerName) {
       try {
+        console.log('🎯 Using Electron printSticker API');
         const result = await window.electronAPI.printSticker({
           printerName: data.printerName,
           htmlContent: stickerHTML
         });
         
-        if (result.success) {
+        console.log('📋 Electron print result:', result);
+        
+        if (result && result.success) {
           return true;
         } else {
-          throw new Error(result.message || 'การพิมพ์ล้มเหลว');
+          throw new Error(result?.message || 'การพิมพ์ล้มเหลว');
         }
       } catch (error) {
-        console.error('Electron direct printing failed:', error);
-        // Fall back to browser printing
-        return await browserPrint(stickerHTML);
+        console.error('❌ Electron direct printing failed:', error);
+        throw error; // Don't fall back to browser print in Electron
       }
+    } else if (isElectron) {
+      // In Electron but no printer configured or API not available
+      throw new Error('ไม่พบเครื่องพิมพ์สติ๊กเกอร์ที่กำหนดไว้ กรุณาตั้งค่าเครื่องพิมพ์ในหน้าตั้งค่า');
     } else {
       // Use browser printing for web environment
+      console.log('🌐 Using browser print fallback');
       return await browserPrint(stickerHTML);
     }
   } catch (error) {
@@ -243,12 +440,12 @@ async function browserPrint(stickerHTML: string): Promise<boolean> {
     setTimeout(() => {
       printWindow.print();
       
-      // Close the print window after printing
+      // Close the print window immediately after printing dialog
       setTimeout(() => {
         if (!printWindow.closed) {
           printWindow.close();
         }
-      }, 3000);
+      }, 1000); // Reduced from 3000ms to 1000ms for faster closing
     }, 500);
     
     return true;

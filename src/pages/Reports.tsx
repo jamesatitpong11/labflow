@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo, useCallback } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -34,12 +34,27 @@ export default function Reports() {
   const [dateFrom, setDateFrom] = useState("");
   const [dateTo, setDateTo] = useState("");
   const [selectedDepartment, setSelectedDepartment] = useState("");
+
+  // Memoized report type for better performance
+  const currentReportType = useMemo(() => {
+    return reportTypes.find(r => r.id === selectedReport);
+  }, [selectedReport]);
   
   // Display dates in Thai format
   const [dateFromDisplay, setDateFromDisplay] = useState("");
   const [dateToDisplay, setDateToDisplay] = useState("");
   const [isGenerating, setIsGenerating] = useState(false);
-  
+
+  // Get today's date functions for Buddhist Era (พ.ศ.)
+  const getTodayISO = () => new Date().toISOString().split('T')[0];
+  const getTodayThaiFormat = () => {
+    const todayDate = new Date();
+    const day = todayDate.getDate().toString().padStart(2, '0');
+    const month = (todayDate.getMonth() + 1).toString().padStart(2, '0');
+    const year = todayDate.getFullYear() + 543; // Convert to Buddhist Era (พ.ศ.)
+    return `${day}/${month}/${year}`;
+  };
+
   // Departments state
   const [departments, setDepartments] = useState<Array<{ id: string; name: string }>>([
     { id: "all", name: "ทุกหน่วยงาน" }
@@ -93,21 +108,18 @@ export default function Reports() {
   const [itemColumns, setItemColumns] = useState<string[]>([]);
   const [isLoadingReport, setIsLoadingReport] = useState(false);
 
-  // Load departments on component mount
+  // Load departments and initialize dates on component mount
   useEffect(() => {
     loadDepartments();
-    // Set default date range to last 30 days
+    
+    // Set default date range to today only
     const today = new Date();
-    const thirtyDaysAgo = new Date();
-    thirtyDaysAgo.setDate(today.getDate() - 30);
+    const todayISO = today.toISOString().split('T')[0];
     
-    const dateFromISO = thirtyDaysAgo.toISOString().split('T')[0];
-    const dateToISO = today.toISOString().split('T')[0];
-    
-    setDateFrom(dateFromISO);
-    setDateTo(dateToISO);
-    setDateFromDisplay(convertFromInputDate(dateFromISO));
-    setDateToDisplay(convertFromInputDate(dateToISO));
+    setDateFrom(todayISO);
+    setDateTo(todayISO);
+    setDateFromDisplay(convertFromInputDate(todayISO));
+    setDateToDisplay(convertFromInputDate(todayISO));
   }, []);
 
   const loadDepartments = async () => {
@@ -346,30 +358,41 @@ export default function Reports() {
     return `${day}/${month}/${year}`;
   };
 
-  // Handle date from change
-  const handleDateFromChange = (value: string) => {
+  // Calculate total revenue from report data
+  const calculateTotalRevenue = useCallback(() => {
+    if (selectedReport === 'salelab') {
+      return salesData.reduce((total, sale) => total + (sale.totalAmount || 0), 0);
+    } else if (selectedReport === 'vts' || selectedReport === 'lab') {
+      // For VTS and Lab reports, we don't have revenue data
+      return 0;
+    } else {
+      return reportData.reduce((total, row) => total + (row.revenue || 0), 0);
+    }
+  }, [selectedReport, salesData, reportData, visitorData]);
+
+  // Optimized date change handlers
+  const handleDateFromChange = useCallback((value: string) => {
     setDateFrom(value);
     setDateFromDisplay(convertFromInputDate(value));
-  };
+  }, []);
 
-  // Handle date to change
-  const handleDateToChange = (value: string) => {
+  const handleDateToChange = useCallback((value: string) => {
     setDateTo(value);
     setDateToDisplay(convertFromInputDate(value));
-  };
+  }, []);
 
   return (
-    <div className="space-y-6">
-      {/* Header */}
-      <Card className="shadow-card-custom border border-primary/20">
-        <CardHeader className="bg-gradient-medical text-white">
-          <div className="flex items-center gap-3">
-            <div className="p-2 bg-white/20 rounded-lg">
-              <BarChart3 className="h-6 w-6" />
+    <div className="space-y-3 p-2">
+      {/* Compact Header */}
+      <Card className="shadow-sm border border-primary/20">
+        <CardHeader className="bg-gradient-medical text-white p-3">
+          <div className="flex items-center gap-2">
+            <div className="p-1.5 bg-white/20 rounded">
+              <BarChart3 className="h-4 w-4" />
             </div>
             <div>
-              <CardTitle className="text-2xl font-bold">รายงาน</CardTitle>
-              <CardDescription className="text-white/80 mt-1">
+              <CardTitle className="text-lg font-semibold">รายงาน</CardTitle>
+              <CardDescription className="text-white/80 text-xs">
                 สร้างและส่งออกรายงานต่างๆ
               </CardDescription>
             </div>
@@ -377,24 +400,24 @@ export default function Reports() {
         </CardHeader>
       </Card>
 
-      <div className="grid gap-6 lg:grid-cols-3">
+      <div className="grid gap-3 lg:grid-cols-3">
         {/* Report Configuration */}
-        <div className="lg:col-span-1 space-y-6">
-          <Card className="shadow-card-custom border border-primary/20">
-            <CardHeader className="bg-primary/5 dark:bg-primary/10 border-b border-primary/20">
-              <CardTitle className="flex items-center gap-2">
-                <Filter className="h-5 w-5 text-primary" />
+        <div className="lg:col-span-1 space-y-3">
+          <Card className="shadow-sm border border-primary/20">
+            <CardHeader className="bg-primary/5 dark:bg-primary/10 border-b border-primary/20 p-3">
+              <CardTitle className="flex items-center gap-2 text-sm">
+                <Filter className="h-4 w-4 text-primary" />
                 ตั้งค่ารายงาน
               </CardTitle>
-              <CardDescription>
+              <CardDescription className="text-xs">
                 เลือกประเภทรายงาน ช่วงวันที่ และหน่วยงาน
               </CardDescription>
             </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="space-y-2">
-                <Label htmlFor="report-type">ประเภทรายงาน</Label>
+            <CardContent className="space-y-3 p-3">
+              <div className="space-y-1">
+                <Label htmlFor="report-type" className="text-xs">ประเภทรายงาน</Label>
                 <Select value={selectedReport} onValueChange={setSelectedReport}>
-                  <SelectTrigger>
+                  <SelectTrigger className="h-8 text-xs">
                     <SelectValue placeholder="เลือกประเภทรายงาน" />
                   </SelectTrigger>
                   <SelectContent>
@@ -407,46 +430,46 @@ export default function Reports() {
                 </Select>
               </div>
 
-              <div className="space-y-2">
-                <Label htmlFor="date-from">วันที่เริ่มต้น</Label>
+              <div className="space-y-1">
+                <Label htmlFor="date-from" className="text-xs">วันที่เริ่มต้น</Label>
                 <div className="relative">
                   <Input 
                     id="date-from"
                     type="date"
                     value={dateFrom}
                     onChange={(e) => handleDateFromChange(e.target.value)}
-                    className="text-transparent"
+                    className="text-transparent h-8"
                   />
                   <div className="absolute inset-0 flex items-center px-3 pointer-events-none bg-transparent">
-                    <span className="text-foreground">
+                    <span className="text-foreground text-xs">
                       {dateFromDisplay || 'เลือกวันที่'}
                     </span>
                   </div>
                 </div>
               </div>
 
-              <div className="space-y-2">
-                <Label htmlFor="date-to">วันที่สิ้นสุด</Label>
+              <div className="space-y-1">
+                <Label htmlFor="date-to" className="text-xs">วันที่สิ้นสุด</Label>
                 <div className="relative">
                   <Input 
                     id="date-to"
                     type="date"
                     value={dateTo}
                     onChange={(e) => handleDateToChange(e.target.value)}
-                    className="text-transparent"
+                    className="text-transparent h-8"
                   />
                   <div className="absolute inset-0 flex items-center px-3 pointer-events-none bg-transparent">
-                    <span className="text-foreground">
+                    <span className="text-foreground text-xs">
                       {dateToDisplay || 'เลือกวันที่'}
                     </span>
                   </div>
                 </div>
               </div>
 
-              <div className="space-y-2">
-                <Label htmlFor="department">หน่วยงาน</Label>
+              <div className="space-y-1">
+                <Label htmlFor="department" className="text-xs">หน่วยงาน</Label>
                 <Select value={selectedDepartment} onValueChange={setSelectedDepartment}>
-                  <SelectTrigger>
+                  <SelectTrigger className="h-8 text-xs">
                     <SelectValue placeholder={isLoadingDepartments ? "กำลังโหลด..." : "เลือกหน่วยงาน"} />
                   </SelectTrigger>
                   <SelectContent>
@@ -459,13 +482,14 @@ export default function Reports() {
                 </Select>
               </div>
 
-              <div className="space-y-3 pt-4">
+              <div className="space-y-2 pt-3">
                 <Button 
                   onClick={handleGenerateReport}
                   disabled={!selectedReport || isGenerating}
-                  className="w-full bg-gradient-medical hover:opacity-90"
+                  className="w-full bg-gradient-medical hover:opacity-90 h-8 text-xs"
+                  size="sm"
                 >
-                  <BarChart3 className="h-4 w-4 mr-2" />
+                  <BarChart3 className="h-3 w-3 mr-1" />
                   {isGenerating ? "กำลังสร้าง..." : "สร้างรายงาน"}
                 </Button>
                 
@@ -473,14 +497,15 @@ export default function Reports() {
                   onClick={handleExportExcel}
                   disabled={!selectedReport || isGenerating}
                   variant="outline"
-                  className="w-full"
+                  className="w-full h-8 text-xs"
+                  size="sm"
                 >
                   {isGenerating ? (
-                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                    <Loader2 className="h-3 w-3 mr-1 animate-spin" />
                   ) : (
-                    <FileSpreadsheet className="h-4 w-4 mr-2" />
+                    <FileSpreadsheet className="h-3 w-3 mr-1" />
                   )}
-                  {isGenerating ? "กำลังสร้าง..." : "ส่งออก Excel Template"}
+                  {isGenerating ? "กำลังสร้าง..." : "ส่งออก Excel"}
                 </Button>
               </div>
             </CardContent>
@@ -491,135 +516,115 @@ export default function Reports() {
         <div className="lg:col-span-2">
           {selectedReport ? (
             <>
-              {/* Stats Cards */}
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
-                <Card className="shadow-card-custom border border-primary/20">
-                  <CardContent className="p-4">
+              {/* Compact Stats Cards */}
+              <div className="grid grid-cols-2 gap-2 mb-3">
+                <Card className="shadow-sm border border-primary/20">
+                  <CardContent className="p-2">
                     <div className="flex items-center justify-between">
                       <div>
-                        <p className="text-sm text-muted-foreground">คนไข้วันนี้</p>
-                        <p className="text-2xl font-bold text-foreground">{reportStats.todayPatients}</p>
-                      </div>
-                      <Users className="h-8 w-8 text-primary" />
-                    </div>
-                  </CardContent>
-                </Card>
-
-                <Card className="shadow-card-custom border border-primary/20">
-                  <CardContent className="p-4">
-                    <div className="flex items-center justify-between">
-                      <div>
-                        <p className="text-sm text-muted-foreground">รายการตรวจ</p>
-                        <p className="text-2xl font-bold text-foreground">{reportStats.todayTests}</p>
-                      </div>
-                      <Activity className="h-8 w-8 text-primary" />
-                    </div>
-                  </CardContent>
-                </Card>
-
-                <Card className="shadow-card-custom border border-primary/20">
-                  <CardContent className="p-4">
-                    <div className="flex items-center justify-between">
-                      <div>
-                        <p className="text-sm text-muted-foreground">รายได้วันนี้</p>
-                        <p className="text-2xl font-bold text-foreground">฿{formatCurrency(reportStats.todayRevenue)}</p>
-                      </div>
-                      <DollarSign className="h-8 w-8 text-primary" />
-                    </div>
-                  </CardContent>
-                </Card>
-
-                <Card className="shadow-card-custom border border-primary/20">
-                  <CardContent className="p-4">
-                    <div className="flex items-center justify-between">
-                      <div>
-                        <p className="text-sm text-muted-foreground">การเติบโต</p>
-                        <p className={`text-2xl font-bold ${reportStats.growth >= 0 ? 'text-success' : 'text-destructive'}`}>
-                          {reportStats.growth >= 0 ? '+' : ''}{reportStats.growth.toFixed(1)}%
+                        <p className="text-xs text-muted-foreground">คนไข้วันนี้</p>
+                        <p className="text-lg font-bold text-foreground">
+                          {selectedReport === 'vts' || selectedReport === 'lab' ? visitorData.length : 
+                           selectedReport === 'salelab' ? salesData.length : 
+                           reportData.length}
                         </p>
                       </div>
-                      <TrendingUp className={`h-8 w-8 ${reportStats.growth >= 0 ? 'text-success' : 'text-destructive'}`} />
+                      <Users className="h-5 w-5 text-primary" />
                     </div>
                   </CardContent>
                 </Card>
+
+
+                <Card className="shadow-sm border border-primary/20">
+                  <CardContent className="p-2">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <p className="text-xs text-muted-foreground">รายได้วันนี้</p>
+                        <p className="text-lg font-bold text-foreground">฿{formatCurrency(calculateTotalRevenue())}</p>
+                      </div>
+                      <DollarSign className="h-5 w-5 text-primary" />
+                    </div>
+                  </CardContent>
+                </Card>
+
               </div>
 
               {/* Report Table */}
-              <Card className="shadow-card-custom border border-primary/20">
-                <CardHeader className="bg-primary/5 dark:bg-primary/10 border-b border-primary/20">
-                  <CardTitle className="flex items-center gap-2">
-                    <BarChart3 className="h-5 w-5 text-primary" />
-                    {reportTypes.find(r => r.id === selectedReport)?.name}
+              <Card className="shadow-sm border border-primary/20">
+                <CardHeader className="bg-primary/5 dark:bg-primary/10 border-b border-primary/20 p-3">
+                  <CardTitle className="flex items-center gap-2 text-sm">
+                    <BarChart3 className="h-4 w-4 text-primary" />
+                    {currentReportType?.name}
                   </CardTitle>
                 </CardHeader>
-                <CardContent>
+                <CardContent className="p-2">
                   <div className="overflow-x-auto">
                     {selectedReport === 'vts' ? (
                       // Visitor Report Table
                       <table className="w-full">
                         <thead>
                           <tr className="border-b border-primary/20 bg-primary/5 dark:bg-primary/10">
-                            <th className="text-left p-3 font-medium text-foreground text-sm min-w-[100px]">เลข visit</th>
-                            <th className="text-left p-3 font-medium text-foreground text-sm min-w-[80px]">LN</th>
-                            <th className="text-left p-3 font-medium text-foreground text-sm min-w-[120px]">เลขบัตรประชาชน</th>
-                            <th className="text-left p-3 font-medium text-foreground text-sm min-w-[80px]">คำนำหน้า</th>
-                            <th className="text-left p-3 font-medium text-foreground text-sm min-w-[100px]">ชื่อ</th>
-                            <th className="text-left p-3 font-medium text-foreground text-sm min-w-[100px]">นามสกุล</th>
-                            <th className="text-left p-3 font-medium text-foreground text-sm min-w-[60px]">อายุ</th>
-                            <th className="text-left p-3 font-medium text-foreground text-sm min-w-[100px]">วันเกิด</th>
-                            <th className="text-left p-3 font-medium text-foreground text-sm min-w-[60px]">เพศ</th>
-                            <th className="text-left p-3 font-medium text-foreground text-sm min-w-[100px]">เบอร์โทร</th>
-                            <th className="text-left p-3 font-medium text-foreground text-sm min-w-[80px]">น้ำหนัก</th>
-                            <th className="text-left p-3 font-medium text-foreground text-sm min-w-[80px]">ส่วนสูง</th>
-                            <th className="text-left p-3 font-medium text-foreground text-sm min-w-[100px]">ความดันโลหิต</th>
-                            <th className="text-left p-3 font-medium text-foreground text-sm min-w-[80px]">ชีพจร</th>
-                            <th className="text-left p-3 font-medium text-foreground text-sm min-w-[150px]">ที่อยู่</th>
-                            <th className="text-left p-3 font-medium text-foreground text-sm min-w-[120px]">หน่วยงาน</th>
-                            <th className="text-left p-3 font-medium text-foreground text-sm min-w-[120px]">ส่งตรวจจาก</th>
-                            <th className="text-left p-3 font-medium text-foreground text-sm min-w-[100px]">สิทธิ</th>
-                            <th className="text-left p-3 font-medium text-foreground text-sm min-w-[120px]">วันที่ลงทะเบียน</th>
-                            <th className="text-left p-3 font-medium text-foreground text-sm min-w-[120px]">วันที่มาตรวจ</th>
+                            <th className="text-left p-2 font-medium text-foreground text-xs min-w-[80px]">เลข visit</th>
+                            <th className="text-left p-2 font-medium text-foreground text-xs min-w-[60px]">LN</th>
+                            <th className="text-left p-2 font-medium text-foreground text-xs min-w-[100px]">เลขบัตรประชาชน</th>
+                            <th className="text-left p-2 font-medium text-foreground text-xs min-w-[60px]">คำนำหน้า</th>
+                            <th className="text-left p-2 font-medium text-foreground text-xs min-w-[80px]">ชื่อ</th>
+                            <th className="text-left p-2 font-medium text-foreground text-xs min-w-[80px]">นามสกุล</th>
+                            <th className="text-left p-2 font-medium text-foreground text-xs min-w-[40px]">อายุ</th>
+                            <th className="text-left p-2 font-medium text-foreground text-xs min-w-[80px]">วันเกิด</th>
+                            <th className="text-left p-2 font-medium text-foreground text-xs min-w-[40px]">เพศ</th>
+                            <th className="text-left p-2 font-medium text-foreground text-xs min-w-[80px]">เบอร์โทร</th>
+                            <th className="text-left p-2 font-medium text-foreground text-xs min-w-[60px]">น้ำหนัก</th>
+                            <th className="text-left p-2 font-medium text-foreground text-xs min-w-[60px]">ส่วนสูง</th>
+                            <th className="text-left p-2 font-medium text-foreground text-xs min-w-[80px]">ความดันโลหิต</th>
+                            <th className="text-left p-2 font-medium text-foreground text-xs min-w-[60px]">ชีพจร</th>
+                            <th className="text-left p-2 font-medium text-foreground text-xs min-w-[120px]">ที่อยู่</th>
+                            <th className="text-left p-2 font-medium text-foreground text-xs min-w-[100px]">หน่วยงาน</th>
+                            <th className="text-left p-2 font-medium text-foreground text-xs min-w-[100px]">ส่งตรวจจาก</th>
+                            <th className="text-left p-2 font-medium text-foreground text-xs min-w-[80px]">สิทธิ</th>
+                            <th className="text-left p-2 font-medium text-foreground text-xs min-w-[100px]">วันที่ลงทะเบียน</th>
+                            <th className="text-left p-2 font-medium text-foreground text-xs min-w-[100px]">วันที่มาตรวจ</th>
                           </tr>
                         </thead>
                         <tbody>
                           {isLoadingReport ? (
                             <tr>
-                              <td colSpan={20} className="p-8 text-center">
+                              <td colSpan={20} className="p-4 text-center">
                                 <div className="flex items-center justify-center gap-2">
-                                  <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
-                                  <span className="text-muted-foreground">กำลังโหลดข้อมูลรายงาน...</span>
+                                  <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
+                                  <span className="text-muted-foreground text-xs">กำลังโหลดข้อมูลรายงาน...</span>
                                 </div>
                               </td>
                             </tr>
                           ) : visitorData.length === 0 ? (
                             <tr>
-                              <td colSpan={20} className="p-8 text-center text-muted-foreground">
+                              <td colSpan={20} className="p-4 text-center text-muted-foreground text-xs">
                                 ไม่มีข้อมูลผู้เข้ารับบริการในช่วงวันที่ที่เลือก
                               </td>
                             </tr>
                           ) : (
                             visitorData.map((visitor, index) => (
                               <tr key={index} className="border-b border-border hover:bg-muted/30">
-                                <td className="p-3 text-sm font-medium">{visitor.referenceNumber || visitor.visitNumber || '-'}</td>
-                                <td className="p-3 text-sm">{visitor.ln || '-'}</td>
-                                <td className="p-3 text-sm">{visitor.idCard && !visitor.idCard.startsWith('NO_ID') ? visitor.idCard : ''}</td>
-                                <td className="p-3 text-sm">{visitor.title || visitor.prefix || '-'}</td>
-                                <td className="p-3 text-sm">{visitor.firstName || '-'}</td>
-                                <td className="p-3 text-sm">{visitor.lastName || '-'}</td>
-                                <td className="p-3 text-sm text-center">{visitor.age || '-'}</td>
-                                <td className="p-3 text-sm">{visitor.birthdate || '-'}</td>
-                                <td className="p-3 text-sm text-center">{visitor.gender || '-'}</td>
-                                <td className="p-3 text-sm">{visitor.phoneNumber || visitor.phone || '-'}</td>
-                                <td className="p-3 text-sm text-center">{visitor.weight || '-'}</td>
-                                <td className="p-3 text-sm text-center">{visitor.height || '-'}</td>
-                                <td className="p-3 text-sm text-center">{visitor.bloodPressure || '-'}</td>
-                                <td className="p-3 text-sm text-center">{visitor.pulse || '-'}</td>
-                                <td className="p-3 text-sm max-w-[200px] truncate" title={visitor.address}>{visitor.address || '-'}</td>
-                                <td className="p-3 text-sm">{visitor.department || '-'}</td>
-                                <td className="p-3 text-sm">{visitor.referringOrganization || visitor.organization || '-'}</td>
-                                <td className="p-3 text-sm">{visitor.patientRights || visitor.rights || '-'}</td>
-                                <td className="p-3 text-sm">{visitor.patientCreatedAt ? formatDateThai(visitor.patientCreatedAt) : '-'}</td>
-                                <td className="p-3 text-sm">{visitor.visitDate ? formatDateThai(visitor.visitDate) : '-'}</td>
+                                <td className="p-2 text-xs font-medium">{visitor.referenceNumber || visitor.visitNumber || '-'}</td>
+                                <td className="p-2 text-xs">{visitor.ln || '-'}</td>
+                                <td className="p-2 text-xs">{visitor.idCard && !visitor.idCard.startsWith('NO_ID') ? visitor.idCard : ''}</td>
+                                <td className="p-2 text-xs">{visitor.title || visitor.prefix || '-'}</td>
+                                <td className="p-2 text-xs">{visitor.firstName || '-'}</td>
+                                <td className="p-2 text-xs">{visitor.lastName || '-'}</td>
+                                <td className="p-2 text-xs text-center">{visitor.age || '-'}</td>
+                                <td className="p-2 text-xs">{visitor.birthdate || '-'}</td>
+                                <td className="p-2 text-xs text-center">{visitor.gender || '-'}</td>
+                                <td className="p-2 text-xs">{visitor.phoneNumber || visitor.phone || '-'}</td>
+                                <td className="p-2 text-xs text-center">{visitor.weight || '-'}</td>
+                                <td className="p-2 text-xs text-center">{visitor.height || '-'}</td>
+                                <td className="p-2 text-xs text-center">{visitor.bloodPressure || '-'}</td>
+                                <td className="p-2 text-xs text-center">{visitor.pulse || '-'}</td>
+                                <td className="p-2 text-xs max-w-[150px] truncate" title={visitor.address}>{visitor.address || '-'}</td>
+                                <td className="p-2 text-xs">{visitor.department || '-'}</td>
+                                <td className="p-2 text-xs">{visitor.referringOrganization || visitor.organization || '-'}</td>
+                                <td className="p-2 text-xs">{visitor.patientRights || visitor.rights || '-'}</td>
+                                <td className="p-2 text-xs">{visitor.patientCreatedAt ? formatDateThai(visitor.patientCreatedAt) : '-'}</td>
+                                <td className="p-2 text-xs">{visitor.visitDate ? formatDateThai(visitor.visitDate) : '-'}</td>
                               </tr>
                             ))
                           )}
@@ -726,16 +731,16 @@ export default function Reports() {
                         <tbody>
                           {isLoadingReport ? (
                             <tr>
-                              <td colSpan={95} className="p-8 text-center">
+                              <td colSpan={95} className="p-4 text-center">
                                 <div className="flex items-center justify-center gap-2">
-                                  <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
-                                  <span className="text-muted-foreground">กำลังโหลดข้อมูลรายงาน...</span>
+                                  <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
+                                  <span className="text-muted-foreground text-xs">กำลังโหลดข้อมูลรายงาน...</span>
                                 </div>
                               </td>
                             </tr>
                           ) : visitorData.length === 0 ? (
                             <tr>
-                              <td colSpan={95} className="p-8 text-center text-muted-foreground">
+                              <td colSpan={95} className="p-4 text-center text-muted-foreground text-xs">
                                 ไม่มีข้อมูลการตรวจในช่วงวันที่ที่เลือก
                               </td>
                             </tr>
@@ -953,8 +958,8 @@ export default function Reports() {
                     )}
                   </div>
 
-                  <div className="flex justify-between items-center mt-6 pt-4 border-t border-border">
-                    <div className="text-sm text-muted-foreground">
+                  <div className="flex justify-between items-center mt-3 pt-3 border-t border-border">
+                    <div className="text-xs text-muted-foreground">
                       แสดง {selectedReport === 'vts' ? visitorData.length : selectedReport === 'salelab' ? salesData.length : reportData.length} รายการ จากทั้งหมด {selectedReport === 'vts' ? visitorData.length : selectedReport === 'salelab' ? salesData.length : reportData.length} รายการ
                       {selectedDepartment && selectedDepartment !== 'all' && (
                         <span className="ml-2">
@@ -966,19 +971,20 @@ export default function Reports() {
                       <Button 
                         variant="outline" 
                         size="sm"
+                        className="h-8 text-xs"
                         onClick={() => window.print()}
                         disabled={(selectedReport === 'vts' ? visitorData.length : selectedReport === 'salelab' ? salesData.length : reportData.length) === 0}
                       >
-                        <FileText className="h-4 w-4 mr-2" />
+                        <FileText className="h-3 w-3 mr-1" />
                         พิมพ์รายงาน
                       </Button>
                       <Button 
                         size="sm" 
-                        className="bg-gradient-success hover:opacity-90"
+                        className="bg-gradient-success hover:opacity-90 h-8 text-xs"
                         onClick={handleExportPDF}
                         disabled={(selectedReport === 'vts' ? visitorData.length : selectedReport === 'salelab' ? salesData.length : reportData.length) === 0}
                       >
-                        <Download className="h-4 w-4 mr-2" />
+                        <Download className="h-3 w-3 mr-1" />
                         ดาวน์โหลด PDF
                       </Button>
                     </div>
@@ -987,11 +993,11 @@ export default function Reports() {
               </Card>
             </>
           ) : (
-            <Card className="shadow-card-custom border border-primary/20">
-              <CardContent className="text-center py-12">
-                <BarChart3 className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
-                <h3 className="text-lg font-semibold text-foreground mb-2">เลือกประเภทรายงาน</h3>
-                <p className="text-muted-foreground">
+            <Card className="shadow-sm border border-primary/20">
+              <CardContent className="text-center py-8">
+                <BarChart3 className="h-8 w-8 text-muted-foreground mx-auto mb-3" />
+                <h3 className="text-sm font-semibold text-foreground mb-1">เลือกประเภทรายงาน</h3>
+                <p className="text-muted-foreground text-xs">
                   กรุณาเลือกประเภทรายงานจากด้านซ้ายเพื่อเริ่มสร้างรายงาน
                 </p>
               </CardContent>

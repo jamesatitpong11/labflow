@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo, useCallback } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -33,14 +33,47 @@ export default function LabResults() {
   const [testResults, setTestResults] = useState<Record<string, { result: string; referenceRange: string; comment: string }>>({});
   const { toast } = useToast();
 
-  // Load orders with 'process' status
+  // Memoized filtered orders for better performance
+  const filteredOrders = useMemo(() => {
+    if (!searchTerm.trim()) return orders;
+    
+    const term = searchTerm.toLowerCase();
+    return orders.filter(order => 
+      order.visitData?.patientName?.toLowerCase().includes(term) ||
+      order.visitData?.visitNumber?.toLowerCase().includes(term) ||
+      order._id?.toLowerCase().includes(term) ||
+      order.labOrders.some(labOrder => 
+        labOrder.testName?.toLowerCase().includes(term)
+      )
+    );
+  }, [orders, searchTerm]);
+
+  // Memoized selected order data
+  const selectedOrderData = useMemo(() => {
+    return orders.find(o => o._id === selectedOrder);
+  }, [orders, selectedOrder]);
+
+  // Load orders with 'process' status - optimized for faster loading
   const loadProcessOrders = async () => {
     setIsLoadingOrders(true);
     try {
-      const allOrders = await apiService.getOrders();
+      console.log('🔄 Loading process orders...');
+      const startTime = Date.now();
+      
+      // Use API with limit and filter for better performance
+      const allOrders = await apiService.getOrders({
+        limit: 50, // Limit to recent orders only
+        sortBy: 'orderDate',
+        sortOrder: 'desc'
+      });
+      
       // Filter orders with 'process' status
       const processOrders = allOrders.filter(order => order.status === 'process');
+      const loadTime = Date.now() - startTime;
+      
+      console.log(`✅ Loaded ${processOrders.length} process orders in ${loadTime}ms`);
       setOrders(processOrders);
+      
     } catch (error) {
       console.error('Error loading orders:', error);
       showErrorToast({
@@ -56,11 +89,16 @@ export default function LabResults() {
     loadProcessOrders();
   }, []);
 
-  const filteredOrders = orders.filter(order =>
-    (order.visitData?.patientName && order.visitData.patientName.toLowerCase().includes(searchTerm.toLowerCase())) ||
-    (order._id && order._id.toLowerCase().includes(searchTerm.toLowerCase())) ||
-    (order.visitData?.visitNumber && order.visitData.visitNumber.toLowerCase().includes(searchTerm.toLowerCase()))
-  );
+  // Optimized callback for handling test result changes
+  const handleTestResultChange = useCallback((testId: string, field: string, value: string) => {
+    setTestResults(prev => ({
+      ...prev,
+      [testId]: {
+        ...prev[testId],
+        [field]: value
+      }
+    }));
+  }, []);
 
   const handleFileUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
     const files = event.target.files;
@@ -183,16 +221,6 @@ export default function LabResults() {
       };
       reader.onerror = error => reject(error);
     });
-  };
-
-  const handleTestResultChange = (testId: string, field: string, value: string) => {
-    setTestResults(prev => ({
-      ...prev,
-      [testId]: {
-        ...prev[testId],
-        [field]: value
-      }
-    }));
   };
 
   const handleSaveResults = async (e: React.FormEvent) => {
@@ -328,17 +356,17 @@ export default function LabResults() {
   };
 
   return (
-    <div className="space-y-4 sm:space-y-6">
-      {/* Header */}
-      <Card className="shadow-card-custom border border-primary/20">
-        <CardHeader className="bg-gradient-medical text-white">
-          <div className="flex items-center gap-3">
-            <div className="p-2 bg-white/20 rounded-lg">
-              <ClipboardList className="h-5 w-5 sm:h-6 sm:w-6" />
+    <div className="space-y-3 p-2">
+      {/* Compact Header */}
+      <Card className="shadow-sm border border-primary/20">
+        <CardHeader className="bg-gradient-medical text-white p-3">
+          <div className="flex items-center gap-2">
+            <div className="p-1.5 bg-white/20 rounded">
+              <ClipboardList className="h-4 w-4" />
             </div>
             <div>
-              <CardTitle className="text-xl sm:text-2xl font-bold">ลงผลการตรวจ</CardTitle>
-              <CardDescription className="text-white/80 mt-1 text-sm">
+              <CardTitle className="text-lg font-semibold">ลงผลการตรวจ</CardTitle>
+              <CardDescription className="text-white/80 text-xs">
                 บันทึกผลการตรวจและแนบไฟล์รายงาน
               </CardDescription>
             </div>
@@ -346,32 +374,32 @@ export default function LabResults() {
         </CardHeader>
       </Card>
 
-      <div className="grid gap-4 sm:gap-6 grid-cols-1 lg:grid-cols-3">
+      <div className="grid gap-3 grid-cols-1 lg:grid-cols-3">
         {/* Orders List */}
-        <div className="lg:col-span-1 space-y-3 sm:space-y-4">
-          <Card className="shadow-card-custom border border-primary/20">
-            <CardHeader className="bg-primary/5 dark:bg-primary/10 border-b border-primary/20">
-              <CardTitle className="flex items-center gap-2">
-                <Search className="h-5 w-5 text-primary" />
+        <div className="lg:col-span-1 space-y-2">
+          <Card className="shadow-sm border border-primary/20">
+            <CardHeader className="bg-primary/5 dark:bg-primary/10 border-b border-primary/20 p-3">
+              <CardTitle className="flex items-center gap-2 text-sm">
+                <Search className="h-4 w-4 text-primary" />
                 รายการรอผล
               </CardTitle>
-              <CardDescription>
+              <CardDescription className="text-xs">
                 เลือกรายการที่ต้องการลงผล
               </CardDescription>
             </CardHeader>
-            <CardContent>
-              <div className="space-y-4">
+            <CardContent className="p-3">
+              <div className="space-y-2">
                 <div className="relative">
-                  <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                  <Search className="absolute left-2 top-1/2 transform -translate-y-1/2 h-3 w-3 text-muted-foreground" />
                   <Input
                     placeholder="ค้นหารายการ..."
                     value={searchTerm}
                     onChange={(e) => setSearchTerm(e.target.value)}
-                    className="pl-10"
+                    className="pl-8 h-8 text-xs"
                   />
                 </div>
 
-                <div className="space-y-3 max-h-96 overflow-y-auto">
+                <div className="space-y-2 max-h-80 overflow-y-auto">
                   {isLoadingOrders ? (
                     <div className="text-center py-8">
                       <p className="text-muted-foreground">กำลังโหลดรายการ...</p>
@@ -384,42 +412,45 @@ export default function LabResults() {
                     filteredOrders.map((order) => (
                       <div
                         key={order._id}
-                        className={`p-4 border rounded-lg cursor-pointer transition-all hover:bg-muted/30 ${
+                        className={`p-2 border rounded cursor-pointer transition-all hover:bg-muted/30 ${
                           selectedOrder === order._id 
                             ? "border-primary bg-primary/5" 
                             : "border-border"
                         }`}
                         onClick={() => setSelectedOrder(order._id!)}
                       >
-                        <div className="space-y-2">
+                        <div className="space-y-1">
                           <div className="flex items-center justify-between">
-                            <span className="font-medium text-foreground">
+                            <span className="font-medium text-xs text-foreground">
                               {order.visitData?.patientName || 'ไม่ระบุชื่อ'}
                             </span>
-                            <Badge variant="outline" className="text-xs">
+                            <Badge variant="outline" className="text-xs px-1 py-0">
                               {order._id?.slice(-6) || 'N/A'}
                             </Badge>
                           </div>
-                          <div className="text-sm text-muted-foreground">
+                          <div className="text-xs text-muted-foreground">
                             <p>Visit: {order.visitData?.visitNumber || 'N/A'}</p>
-                            <p className="flex items-center gap-1 mt-1">
-                              <Calendar className="h-3 w-3" />
-                              วันที่สั่ง: {new Date(order.orderDate).toLocaleDateString('th-TH')}
+                            <p className="flex items-center gap-1">
+                              <Calendar className="h-2 w-2" />
+                              {new Date(order.orderDate).toLocaleDateString('th-TH')}
                             </p>
                           </div>
                           <div className="flex flex-wrap gap-1">
-                            {order.labOrders.map((labOrder, index) => (
+                            {order.labOrders.slice(0, 2).map((labOrder, index) => (
                               <Badge 
                                 key={index} 
                                 variant="secondary"
-                                className="text-xs"
+                                className="text-xs px-1 py-0"
                               >
                                 {labOrder.testName}
-                                {labOrder.type === 'package' && (
-                                  <span className="ml-1 text-blue-600">📦</span>
-                                )}
+                                {labOrder.type === 'package' && '📦'}
                               </Badge>
                             ))}
+                            {order.labOrders.length > 2 && (
+                              <Badge variant="outline" className="text-xs px-1 py-0">
+                                +{order.labOrders.length - 2}
+                              </Badge>
+                            )}
                           </div>
                         </div>
                       </div>
@@ -432,30 +463,30 @@ export default function LabResults() {
         </div>
 
         {/* Results Form */}
-        <div className="lg:col-span-2 space-y-4 sm:space-y-6">
+        <div className="lg:col-span-2 space-y-2">
           {selectedOrder ? (
             <>
               {/* Selected Order Info */}
-              <Card className="shadow-card-custom border border-primary/20">
-                <CardHeader className="bg-primary/5 dark:bg-primary/10 border-b border-primary/20">
-                  <CardTitle className="flex items-center gap-2">
-                    <ClipboardList className="h-5 w-5 text-primary" />
-                    ลงผลการตรวจ - {selectedOrder}
+              <Card className="shadow-sm border border-primary/20">
+                <CardHeader className="bg-primary/5 dark:bg-primary/10 border-b border-primary/20 p-3">
+                  <CardTitle className="flex items-center gap-2 text-sm">
+                    <ClipboardList className="h-4 w-4 text-primary" />
+                    ลงผลการตรวจ - {selectedOrder?.slice(-6)}
                   </CardTitle>
                 </CardHeader>
-                <CardContent>
+                <CardContent className="p-3">
                   {(() => {
                     const order = orders.find(o => o._id === selectedOrder);
                     return order ? (
-                      <div className="space-y-4">
-                        <div className="bg-primary/5 dark:bg-primary/10 p-4 rounded-lg border border-primary/20">
-                          <div className="grid md:grid-cols-2 gap-4 text-sm">
+                      <div className="space-y-3">
+                        <div className="bg-primary/5 dark:bg-primary/10 p-3 rounded border border-primary/20">
+                          <div className="grid md:grid-cols-2 gap-2 text-xs">
                             <div>
                               <span className="font-medium">คนไข้:</span>
                               <span className="ml-2">{order.visitData?.patientName || 'ไม่ระบุชื่อ'}</span>
                             </div>
                             <div>
-                              <span className="font-medium">Visit Number:</span>
+                              <span className="font-medium">Visit:</span>
                               <span className="ml-2">{order.visitData?.visitNumber || 'N/A'}</span>
                             </div>
                             <div>
@@ -468,7 +499,7 @@ export default function LabResults() {
                             </div>
                             <div>
                               <span className="font-medium">สถานะ:</span>
-                              <Badge className="ml-2" variant="secondary">
+                              <Badge className="ml-2 text-xs px-1 py-0" variant="secondary">
                                 {order.status === 'process' ? 'กำลังดำเนินการ' : order.status}
                               </Badge>
                             </div>
@@ -479,69 +510,75 @@ export default function LabResults() {
                           </div>
                         </div>
 
-                        <form onSubmit={handleSaveResults} className="space-y-6">
+                        <form onSubmit={handleSaveResults} className="space-y-3">
                           {/* Test Results */}
-                          <div className="space-y-4">
-                            <Label className="text-lg font-semibold">ผลการตรวจ</Label>
+                          <div className="space-y-2">
+                            <Label className="text-sm font-semibold">ผลการตรวจ</Label>
                             {order.labOrders.map((labOrder, index) => (
                               <Card key={index} className="border border-primary/20">
-                                <CardHeader className="pb-3 bg-primary/5 dark:bg-primary/10 border-b border-primary/20">
+                                <CardHeader className="pb-2 bg-primary/5 dark:bg-primary/10 border-b border-primary/20 p-3">
                                   <div className="flex items-center justify-between">
-                                    <CardTitle className="text-base flex items-center gap-2">
+                                    <CardTitle className="text-sm flex items-center gap-2">
                                       {labOrder.testName}
                                       {labOrder.type === 'package' && (
-                                        <Badge variant="outline" className="text-xs">แพ็กเกจ</Badge>
+                                        <Badge variant="outline" className="text-xs px-1 py-0">แพ็กเกจ</Badge>
                                       )}
                                     </CardTitle>
-                                    <Badge variant="secondary">รอผล</Badge>
+                                    <Badge variant="secondary" className="text-xs px-1 py-0">รอผล</Badge>
                                   </div>
                                   {labOrder.code && (
-                                    <p className="text-sm text-muted-foreground">รหัส: {labOrder.code}</p>
+                                    <p className="text-xs text-muted-foreground">รหัส: {labOrder.code}</p>
                                   )}
                                   
                                   {/* Show individual tests for packages */}
                                   {labOrder.type === 'package' && labOrder.individualTests && labOrder.individualTests.length > 0 && (
-                                    <div className="mt-2">
-                                      <p className="text-sm font-medium mb-1">รายการตรวจในแพ็กเกจ:</p>
+                                    <div className="mt-1">
+                                      <p className="text-xs font-medium mb-1">รายการตรวจในแพ็กเกจ:</p>
                                       <div className="flex flex-wrap gap-1">
-                                        {labOrder.individualTests.map((test, testIndex) => (
-                                          <Badge key={testIndex} variant="outline" className="text-xs">
+                                        {labOrder.individualTests.slice(0, 3).map((test, testIndex) => (
+                                          <Badge key={testIndex} variant="outline" className="text-xs px-1 py-0">
                                             {test?.name || 'ไม่ระบุชื่อ'}
                                             {test?.code && ` (${test.code})`}
                                           </Badge>
                                         ))}
+                                        {labOrder.individualTests.length > 3 && (
+                                          <Badge variant="outline" className="text-xs px-1 py-0">
+                                            +{labOrder.individualTests.length - 3}
+                                          </Badge>
+                                        )}
                                       </div>
                                     </div>
                                   )}
                                 </CardHeader>
-                                <CardContent className="space-y-4">
-                                  <div className="space-y-2">
-                                    <Label htmlFor={`result-${labOrder.testId}`}>ผลการตรวจ</Label>
+                                <CardContent className="space-y-3 p-3">
+                                  <div className="space-y-1">
+                                    <Label htmlFor={`result-${labOrder.testId}`} className="text-xs">ผลการตรวจ</Label>
                                     <Textarea
                                       id={`result-${labOrder.testId}`}
                                       placeholder="กรอกผลการตรวจ..."
-                                      className="min-h-[100px]"
+                                      className="min-h-[60px] text-xs"
                                       value={testResults[labOrder.testId]?.result || ''}
                                       onChange={(e) => handleTestResultChange(labOrder.testId, 'result', e.target.value)}
                                     />
                                   </div>
                                   
-                                  <div className="space-y-2">
-                                    <Label htmlFor={`reference-${labOrder.testId}`}>ค่าอ้างอิง</Label>
+                                  <div className="space-y-1">
+                                    <Label htmlFor={`reference-${labOrder.testId}`} className="text-xs">ค่าอ้างอิง</Label>
                                     <Input
                                       id={`reference-${labOrder.testId}`}
                                       placeholder="ค่าปกติ/ช่วงอ้างอิง"
+                                      className="h-8 text-xs"
                                       value={testResults[labOrder.testId]?.referenceRange || ''}
                                       onChange={(e) => handleTestResultChange(labOrder.testId, 'referenceRange', e.target.value)}
                                     />
                                   </div>
 
-                                  <div className="space-y-2">
-                                    <Label htmlFor={`comment-${labOrder.testId}`}>หมายเหตุ</Label>
+                                  <div className="space-y-1">
+                                    <Label htmlFor={`comment-${labOrder.testId}`} className="text-xs">หมายเหตุ</Label>
                                     <Textarea
                                       id={`comment-${labOrder.testId}`}
                                       placeholder="หมายเหตุเพิ่มเติม (ถ้ามี)"
-                                      className="min-h-[80px]"
+                                      className="min-h-[50px] text-xs"
                                       value={testResults[labOrder.testId]?.comment || ''}
                                       onChange={(e) => handleTestResultChange(labOrder.testId, 'comment', e.target.value)}
                                     />
@@ -552,29 +589,29 @@ export default function LabResults() {
                           </div>
 
                           {/* File Upload */}
-                          <Card className="shadow-card-custom border border-primary/20">
-                            <CardHeader className="bg-primary/5 dark:bg-primary/10 border-b border-primary/20">
-                              <CardTitle className="flex items-center gap-2">
-                                <Upload className="h-5 w-5 text-primary" />
+                          <Card className="shadow-sm border border-primary/20">
+                            <CardHeader className="bg-primary/5 dark:bg-primary/10 border-b border-primary/20 p-3">
+                              <CardTitle className="flex items-center gap-2 text-sm">
+                                <Upload className="h-4 w-4 text-primary" />
                                 แนบไฟล์ผลการตรวจ
                               </CardTitle>
-                              <CardDescription>
+                              <CardDescription className="text-xs">
                                 แนบไฟล์รูปภาพหรือ PDF ของผลการตรวจ
                               </CardDescription>
                             </CardHeader>
-                            <CardContent className="space-y-4">
+                            <CardContent className="space-y-3 p-3">
                               <div 
-                                className="border-2 border-dashed border-border rounded-lg p-6 text-center hover:border-primary/50 transition-colors"
+                                className="border-2 border-dashed border-border rounded p-4 text-center hover:border-primary/50 transition-colors"
                                 onDragOver={handleDragOver}
                                 onDragEnter={handleDragEnter}
                                 onDragLeave={handleDragLeave}
                                 onDrop={handleDrop}
                               >
-                                <Upload className="h-10 w-10 text-muted-foreground mx-auto mb-4" />
-                                <div className="space-y-2">
+                                <Upload className="h-6 w-6 text-muted-foreground mx-auto mb-2" />
+                                <div className="space-y-1">
                                   <Label htmlFor="file-upload" className="cursor-pointer">
-                                    <span className="font-medium text-primary">คลิกเพื่อเลือกไฟล์</span>
-                                    <span className="text-muted-foreground"> หรือลากไฟล์มาวาง</span>
+                                    <span className="font-medium text-primary text-xs">คลิกเพื่อเลือกไฟล์</span>
+                                    <span className="text-muted-foreground text-xs"> หรือลากไฟล์มาวาง</span>
                                   </Label>
                                   <Input
                                     id="file-upload"
@@ -630,17 +667,18 @@ export default function LabResults() {
                           </Card>
 
                           {/* Actions */}
-                          <div className="flex gap-3 justify-end">
-                            <Button type="button" variant="outline">
-                              <Download className="h-4 w-4 mr-2" />
+                          <div className="flex gap-2 justify-end">
+                            <Button type="button" variant="outline" size="sm" className="text-xs">
+                              <Download className="h-3 w-3 mr-1" />
                               ดาวน์โหลดแบบฟอร์ม
                             </Button>
                             <Button 
                               type="submit"
-                              className="bg-gradient-medical hover:opacity-90"
+                              className="bg-gradient-medical hover:opacity-90 text-xs"
+                              size="sm"
                               disabled={isLoading}
                             >
-                              <Save className="h-4 w-4 mr-2" />
+                              <Save className="h-3 w-3 mr-1" />
                               {isLoading ? "กำลังบันทึก..." : "บันทึกผลการตรวจ"}
                             </Button>
                           </div>
@@ -652,11 +690,11 @@ export default function LabResults() {
               </Card>
             </>
           ) : (
-            <Card className="shadow-card-custom border border-primary/20">
-              <CardContent className="text-center py-12">
-                <ClipboardList className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
-                <h3 className="text-lg font-semibold text-foreground mb-2">เลือกรายการที่ต้องการลงผล</h3>
-                <p className="text-muted-foreground">
+            <Card className="shadow-sm border border-primary/20">
+              <CardContent className="text-center py-8">
+                <ClipboardList className="h-8 w-8 text-muted-foreground mx-auto mb-3" />
+                <h3 className="text-sm font-semibold text-foreground mb-1">เลือกรายการที่ต้องการลงผล</h3>
+                <p className="text-muted-foreground text-xs">
                   กรุณาเลือกรายการจากด้านซ้ายเพื่อเริ่มลงผลการตรวจ
                 </p>
               </CardContent>
