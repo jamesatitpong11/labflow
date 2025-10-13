@@ -664,8 +664,16 @@ class ApiService {
     bankTransfer: number;
     insurance: number;
     other: number;
+    free: number; // เพิ่มยอดเงินของรายการฟรี
     total: number;
     cancelled: number;
+    // เพิ่มฟิลด์สำหรับจำนวนรายการ
+    cashCount?: number;
+    creditCardCount?: number;
+    bankTransferCount?: number;
+    insuranceCount?: number;
+    otherCount?: number;
+    freeCount?: number;
   }> {
     return this.request<{
       cash: number;
@@ -673,8 +681,16 @@ class ApiService {
       bankTransfer: number;
       insurance: number;
       other: number;
+      free: number; // เพิ่มยอดเงินของรายการฟรี
       total: number;
       cancelled: number;
+      // เพิ่มฟิลด์สำหรับจำนวนรายการ
+      cashCount?: number;
+      creditCardCount?: number;
+      bankTransferCount?: number;
+      insuranceCount?: number;
+      otherCount?: number;
+      freeCount?: number;
     }>(`/dashboard/revenue-breakdown?date=${date}`);
   }
 

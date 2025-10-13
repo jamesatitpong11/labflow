@@ -1995,7 +1995,8 @@ app.get('/api/dashboard/stats', async (req, res) => {
       { 
         $match: { 
           createdAt: { $gte: todayStart, $lt: todayEnd },
-          status: { $in: ['process', 'completed'] } // นับเฉพาะที่ชำระเงินแล้ว
+          status: { $in: ['process', 'completed'] }, // นับเฉพาะที่ชำระเงินแล้ว
+          paymentMethod: { $nin: ['free', 'ฟรี', 'Free', 'FREE'] } // ตัดรายการฟรีออก
         } 
       },
       { $group: { _id: null, total: { $sum: '$totalAmount' } } }
@@ -2026,11 +2027,18 @@ app.get('/api/dashboard/stats', async (req, res) => {
       { 
         $match: { 
           createdAt: { $gte: yesterday, $lt: yesterdayEnd },
-          status: { $in: ['process', 'completed'] } // นับเฉพาะที่ชำระเงินแล้ว
+          status: { $in: ['process', 'completed'] }, // นับเฉพาะที่ชำระเงินแล้ว
+          paymentMethod: { $nin: ['free', 'ฟรี', 'Free', 'FREE'] } // ตัดรายการฟรีออก
         } 
       },
       { $group: { _id: null, total: { $sum: '$totalAmount' } } }
     ]).toArray();
+
+    // Debug: ตรวจสอบการคำนวณรายได้
+    console.log('=== REVENUE CALCULATION DEBUG ===');
+    console.log('Today revenue (excluding free):', todayRevenue[0]?.total || 0);
+    console.log('Yesterday revenue (excluding free):', yesterdayRevenue[0]?.total || 0);
+    console.log('=== END REVENUE DEBUG ===');
 
     res.json({
       todayPatients,
@@ -2247,7 +2255,7 @@ app.get('/api/dashboard/revenue-breakdown', async (req, res) => {
     const todayEnd = new Date(todayStart);
     todayEnd.setDate(todayEnd.getDate() + 1);
 
-    // Get revenue breakdown by payment method
+    // Get revenue breakdown by payment method with count
     const revenueBreakdown = await db.collection('orders').aggregate([
       {
         $match: {
@@ -2258,51 +2266,110 @@ app.get('/api/dashboard/revenue-breakdown', async (req, res) => {
       {
         $group: {
           _id: '$paymentMethod',
-          total: { $sum: '$totalAmount' }
+          total: { $sum: '$totalAmount' },
+          count: { $sum: 1 } // เพิ่มการนับจำนวนรายการ
         }
       }
     ]).toArray();
 
-    // Initialize breakdown object
+    // Debug: แสดงข้อมูลจากฐานข้อมูล
+    console.log('=== REVENUE BREAKDOWN DEBUG ===');
+    console.log('Date range:', todayStart, 'to', todayEnd);
+    console.log('Raw data from database:', JSON.stringify(revenueBreakdown, null, 2));
+    
+    // ตรวจสอบ paymentMethod ทั้งหมดในฐานข้อมูล
+    const allPaymentMethods = await db.collection('orders').distinct('paymentMethod', {
+      createdAt: { $gte: todayStart, $lt: todayEnd },
+      status: { $in: ['process', 'completed'] }
+    });
+    console.log('All payment methods in database:', allPaymentMethods);
+    
+    // ตรวจสอบรายการฟรีโดยเฉพาะ
+    const freeOrders = await db.collection('orders').find({
+      createdAt: { $gte: todayStart, $lt: todayEnd },
+      status: { $in: ['process', 'completed'] },
+      paymentMethod: { $in: ['free', 'ฟรี', 'Free', 'FREE'] }
+    }).toArray();
+    console.log('Free orders found:', freeOrders.length);
+    if (freeOrders.length > 0) {
+      console.log('Free orders details:', freeOrders.map(o => ({
+        paymentMethod: o.paymentMethod,
+        totalAmount: o.totalAmount,
+        status: o.status
+      })));
+    }
+
+    // Initialize breakdown object with count fields
     const breakdown = {
       cash: 0,
       creditCard: 0,
       bankTransfer: 0,
       insurance: 0,
       other: 0,
+      free: 0, // เพิ่มยอดเงินของรายการฟรี
       total: 0,
-      cancelled: 0
+      cancelled: 0,
+      // เพิ่มฟิลด์สำหรับจำนวนรายการ
+      cashCount: 0,
+      creditCardCount: 0,
+      bankTransferCount: 0,
+      insuranceCount: 0,
+      otherCount: 0,
+      freeCount: 0
     };
 
     // Process the results and map payment methods
     revenueBreakdown.forEach(item => {
       const amount = item.total || 0;
-      breakdown.total += amount;
+      const count = item.count || 0;
+      
+      console.log(`Processing: ${item._id} -> Amount: ${amount}, Count: ${count}`);
 
       switch (item._id?.toLowerCase()) {
         case 'cash':
         case 'เงินสด':
           breakdown.cash += amount;
+          breakdown.cashCount += count;
+          breakdown.total += amount; // บวกเข้ายอดรวม
           break;
         case 'credit_card':
         case 'creditcard':
         case 'บัตรเครดิต':
+        case 'เครดิต': // เพิ่มการจับ "เครดิต"
+          console.log(`✅ Found CREDIT order: ${item._id} -> Count: ${count}, Amount: ${amount}`);
           breakdown.creditCard += amount;
+          breakdown.creditCardCount += count;
+          breakdown.total += amount; // บวกเข้ายอดรวม
           break;
         case 'bank_transfer':
         case 'banktransfer':
         case 'transfer':
         case 'โอนเงิน':
           breakdown.bankTransfer += amount;
+          breakdown.bankTransferCount += count;
+          breakdown.total += amount; // บวกเข้ายอดรวม
           break;
         case 'insurance':
         case 'ประกันสังคม':
         case 'สปสช.':
         case 'สปสช':
+          console.log(`✅ Found INSURANCE order: ${item._id} -> Count: ${count}, Amount: ${amount}`);
           breakdown.insurance += amount;
+          breakdown.insuranceCount += count;
+          breakdown.total += amount; // บวกเข้ายอดรวม
+          break;
+        case 'free':
+        case 'ฟรี':
+          // รายการฟรี - เก็บยอดเงินแต่ไม่บวกเข้ายอดรวม (เพราะเป็นรายการฟรี)
+          console.log(`✅ Found FREE order: ${item._id} -> Count: ${count}, Amount: ${amount}`);
+          breakdown.free += amount; // เก็บยอดเงินของรายการฟรี
+          breakdown.freeCount += count;
+          // ไม่บวกเข้า breakdown.total เพราะเป็นรายการฟรี
           break;
         default:
           breakdown.other += amount;
+          breakdown.otherCount += count;
+          breakdown.total += amount; // บวกเข้ายอดรวม
           break;
       }
     });
@@ -2324,6 +2391,10 @@ app.get('/api/dashboard/revenue-breakdown', async (req, res) => {
     ]).toArray();
 
     breakdown.cancelled = cancelledOrders[0]?.total || 0;
+
+    // Debug: แสดงผลลัพธ์สุดท้าย
+    console.log('Final breakdown result:', JSON.stringify(breakdown, null, 2));
+    console.log('=== END DEBUG ===');
 
     res.json(breakdown);
   } catch (error) {
@@ -2400,7 +2471,14 @@ app.get('/api/reports/data', async (req, res) => {
             return itemSum + (sale[`item_${col}`] > 0 ? 1 : 0);
           }, 0);
         }, 0);
-        const todayRevenue = salesData.reduce((sum, sale) => sum + (sale.totalAmount || 0), 0);
+        const todayRevenue = salesData.reduce((sum, sale) => {
+          // ตัดรายการฟรีออกจากการคำนวณรายได้
+          if (sale.paymentMethod && ['free', 'ฟรี', 'Free', 'FREE'].includes(sale.paymentMethod)) {
+            console.log(`Excluding FREE sale from revenue: ${sale.totalAmount} (${sale.paymentMethod})`);
+            return sum; // ไม่บวกรายการฟรี
+          }
+          return sum + (sale.totalAmount || 0);
+        }, 0);
 
         return res.json({
           stats: {
@@ -2464,17 +2542,33 @@ app.get('/api/reports/data', async (req, res) => {
 
     const todayVisits = visits.filter(v => {
       const visitDate = new Date(v.visitDate);
+      // ตรวจสอบว่า visitDate ถูกต้องหรือไม่
+      if (isNaN(visitDate.getTime())) {
+        console.warn('Invalid visitDate:', v.visitDate);
+        return false;
+      }
       return visitDate >= todayStart && visitDate <= todayEnd;
     });
 
     const todayOrders = orders.filter(o => {
       const orderDate = new Date(o.createdAt);
+      // ตรวจสอบว่า orderDate ถูกต้องหรือไม่
+      if (isNaN(orderDate.getTime())) {
+        console.warn('Invalid createdAt:', o.createdAt);
+        return false;
+      }
       return orderDate >= todayStart && orderDate <= todayEnd;
     });
 
     const todayPatients = todayVisits.length;
     const todayTests = todayOrders.reduce((sum, order) => sum + (order.items?.length || 0), 0);
-    const todayRevenue = todayOrders.reduce((sum, order) => sum + (order.totalAmount || 0), 0);
+    const todayRevenue = todayOrders.reduce((sum, order) => {
+      // ตัดรายการฟรีออกจากการคำนวณรายได้
+      if (order.paymentMethod && ['free', 'ฟรี', 'Free', 'FREE'].includes(order.paymentMethod)) {
+        return sum; // ไม่บวกรายการฟรี
+      }
+      return sum + (order.totalAmount || 0);
+    }, 0);
 
     // Calculate growth (mock calculation)
     const growth = Math.random() * 20 - 10; // Random growth between -10% to +10%
@@ -3200,6 +3294,11 @@ async function getSalesReportData({ dateFrom, dateTo, department }) {
         patientRights: visit.patientRights || '-',
         orderDate: order.orderDate ? (() => {
           const date = new Date(order.orderDate);
+          // ตรวจสอบว่า date ถูกต้องหรือไม่
+          if (isNaN(date.getTime())) {
+            console.warn('Invalid orderDate:', order.orderDate);
+            return '-';
+          }
           const day = date.getDate().toString().padStart(2, '0');
           const month = (date.getMonth() + 1).toString().padStart(2, '0');
           const year = (date.getFullYear() + 543).toString();
@@ -3838,7 +3937,13 @@ async function handleSalesReport(req, res, { dateFrom, dateTo, department }) {
 
     const todayPatients = todaySales.length;
     const todayTests = results.reduce((sum, result) => sum + (result.items?.length || 0), 0);
-    const todayRevenue = todaySales.reduce((sum, sale) => sum + (sale.totalAmount || 0), 0);
+    const todayRevenue = todaySales.reduce((sum, sale) => {
+      // ตัดรายการฟรีออกจากการคำนวณรายได้
+      if (sale.paymentMethod && ['free', 'ฟรี', 'Free', 'FREE'].includes(sale.paymentMethod)) {
+        return sum; // ไม่บวกรายการฟรี
+      }
+      return sum + (sale.totalAmount || 0);
+    }, 0);
 
     // Calculate growth (mock calculation for now)
     const growth = Math.random() * 20 - 10;

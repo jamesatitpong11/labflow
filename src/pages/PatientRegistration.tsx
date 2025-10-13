@@ -2300,9 +2300,7 @@ export default function PatientRegistration() {
                         <option value="สปสช." />
                         <option value="ประกันสังคม" />
                         <option value="ข้าราชการ" />
-                        <option value="รัฐวิสาหกิจ" />
-                        <option value="ประกันสุขภาพถ้วนหน้า" />
-                        <option value="ประกันชีวิต" />
+                        <option value="หน่วยงาน" />
                       </datalist>
                     </div>
                   </div>
@@ -2320,9 +2318,6 @@ export default function PatientRegistration() {
                       <datalist id="department-options">
                         <option value="คลินิกเทคนิคการแพทย์ โปร อินเตอร์ แลบ ไชยา" />
                         <option value="คลินิกเวชกรรมไชยารวมแพทย์" />
-                        <option value="โรงพยาบาลไชยา" />
-                        <option value="โรงพยาบาลสุราษฎร์ธานี" />
-                        <option value="ศูนย์สุขภาพชุมชน" />
                         <option value="สปสช." />
                       </datalist>
                     </div>

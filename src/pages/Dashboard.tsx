@@ -89,16 +89,27 @@ export default function Dashboard() {
     bankTransfer: number;
     insurance: number;
     other: number;
+    free: number; // เพิ่มยอดเงินของรายการฟรี
     total: number;
     cancelled: number;
+    // เพิ่มฟิลด์สำหรับการนับจำนวน
+    cashCount: number;
+    bankTransferCount: number;
+    creditCount: number; // รวม creditCard + insurance
+    freeCount: number;
   }>({
     cash: 0,
     creditCard: 0,
     bankTransfer: 0,
     insurance: 0,
     other: 0,
+    free: 0,
     total: 0,
-    cancelled: 0
+    cancelled: 0,
+    cashCount: 0,
+    bankTransferCount: 0,
+    creditCount: 0,
+    freeCount: 0
   });
   
   const [systemStatus, setSystemStatus] = useState({
@@ -215,7 +226,18 @@ export default function Dashboard() {
   const loadRevenueBreakdown = async (date: string) => {
     try {
       const breakdown = await apiService.getRevenueBreakdown(date);
-      setRevenueBreakdown(breakdown);
+      
+      // รวมข้อมูลจำนวนรายการจาก API (ถ้ามี) หรือใช้ค่าเริ่มต้น
+      const enhancedBreakdown = {
+        ...breakdown,
+        // ใช้ข้อมูลจาก API ถ้ามี หรือค่าเริ่มต้น 0
+        cashCount: breakdown.cashCount || 0, // 1. เงินสด - นับเงินสด
+        bankTransferCount: breakdown.bankTransferCount || 0, // 2. เงินโอน - นับเงินโอน
+        creditCount: (breakdown.creditCardCount || 0) + (breakdown.insuranceCount || 0), // 3. เครดิต - นับเครดิต + สปสช.
+        freeCount: breakdown.freeCount || 0, // 4. ฟรี - นับฟรีเท่านั้น (ไม่รวม other)
+      };
+      
+      setRevenueBreakdown(enhancedBreakdown);
       setIsRevenueDialogOpen(true);
     } catch (error) {
       console.error('Failed to load revenue breakdown:', error);
@@ -653,45 +675,61 @@ export default function Dashboard() {
           <div className="space-y-4">
             <div className="space-y-3">
               <div className="flex justify-between items-center p-3 rounded-lg bg-green-50 dark:bg-green-950/20">
-                <span className="font-medium text-green-800 dark:text-green-200">💵 เงินสด</span>
+                <div className="flex flex-col">
+                  <span className="font-medium text-green-800 dark:text-green-200">💵 เงินสด</span>
+                  <span className="text-sm text-green-600 dark:text-green-300">
+                    จำนวน {revenueBreakdown.cashCount} รายการ
+                  </span>
+                </div>
                 <span className="font-bold text-green-800 dark:text-green-200">
                   {formatCurrency(revenueBreakdown.cash)} บาท
                 </span>
               </div>
               
-              <div className="flex justify-between items-center p-3 rounded-lg bg-blue-50 dark:bg-blue-950/20">
-                <span className="font-medium text-blue-800 dark:text-blue-200">💳 บัตรเครดิต</span>
-                <span className="font-bold text-blue-800 dark:text-blue-200">
-                  {formatCurrency(revenueBreakdown.creditCard)} บาท
-                </span>
-              </div>
-              
               <div className="flex justify-between items-center p-3 rounded-lg bg-purple-50 dark:bg-purple-950/20">
-                <span className="font-medium text-purple-800 dark:text-purple-200">🏦 โอนเงิน</span>
+                <div className="flex flex-col">
+                  <span className="font-medium text-purple-800 dark:text-purple-200">🏦 เงินโอน</span>
+                  <span className="text-sm text-purple-600 dark:text-purple-300">
+                    จำนวน {revenueBreakdown.bankTransferCount} รายการ
+                  </span>
+                </div>
                 <span className="font-bold text-purple-800 dark:text-purple-200">
                   {formatCurrency(revenueBreakdown.bankTransfer)} บาท
                 </span>
               </div>
               
-              <div className="flex justify-between items-center p-3 rounded-lg bg-orange-50 dark:bg-orange-950/20">
-                <span className="font-medium text-orange-800 dark:text-orange-200">🏥 สปสช.</span>
-                <span className="font-bold text-orange-800 dark:text-orange-200">
-                  {formatCurrency(revenueBreakdown.insurance)} บาท
+              <div className="flex justify-between items-center p-3 rounded-lg bg-blue-50 dark:bg-blue-950/20">
+                <div className="flex flex-col">
+                  <span className="font-medium text-blue-800 dark:text-blue-200">💳 เครดิต</span>
+                  <span className="text-sm text-blue-600 dark:text-blue-300">
+                    จำนวน {revenueBreakdown.creditCount} รายการ (บัตรเครดิต + สปสช.)
+                  </span>
+                </div>
+                <span className="font-bold text-blue-800 dark:text-blue-200">
+                  {formatCurrency(revenueBreakdown.creditCard + revenueBreakdown.insurance)} บาท
                 </span>
               </div>
               
-              {revenueBreakdown.other > 0 && (
-                <div className="flex justify-between items-center p-3 rounded-lg bg-gray-50 dark:bg-gray-950/20">
-                  <span className="font-medium text-gray-800 dark:text-gray-200">📄 อื่นๆ</span>
-                  <span className="font-bold text-gray-800 dark:text-gray-200">
-                    {formatCurrency(revenueBreakdown.other)} บาท
+              <div className="flex justify-between items-center p-3 rounded-lg bg-gray-50 dark:bg-gray-950/20">
+                <div className="flex flex-col">
+                  <span className="font-medium text-gray-800 dark:text-gray-200">🆓 ฟรี</span>
+                  <span className="text-sm text-gray-600 dark:text-gray-300">
+                    จำนวน {revenueBreakdown.freeCount} รายการ (มูลค่าที่ให้ฟรี)
                   </span>
                 </div>
-              )}
+                <span className="font-bold text-gray-800 dark:text-gray-200">
+                  {formatCurrency(revenueBreakdown.free)} บาท
+                </span>
+              </div>
               
               {revenueBreakdown.cancelled > 0 && (
                 <div className="flex justify-between items-center p-3 rounded-lg bg-red-50 dark:bg-red-950/20">
-                  <span className="font-medium text-red-800 dark:text-red-200">❌ ยกเลิก</span>
+                  <div className="flex flex-col">
+                    <span className="font-medium text-red-800 dark:text-red-200">❌ ยกเลิก</span>
+                    <span className="text-sm text-red-600 dark:text-red-300">
+                      รายการที่ยกเลิก
+                    </span>
+                  </div>
                   <span className="font-bold text-red-800 dark:text-red-200">
                     {formatCurrency(revenueBreakdown.cancelled)} บาท
                   </span>

@@ -336,6 +336,13 @@ export default function Reports() {
   const formatDateThai = (dateString: string) => {
     if (!dateString) return '';
     const date = new Date(dateString);
+    
+    // ตรวจสอบว่า date ถูกต้องหรือไม่
+    if (isNaN(date.getTime())) {
+      console.warn('Invalid date string:', dateString);
+      return dateString; // ส่งคืน string เดิมถ้า parse ไม่ได้
+    }
+    
     const day = date.getDate().toString().padStart(2, '0');
     const month = (date.getMonth() + 1).toString().padStart(2, '0');
     const year = date.getFullYear();
@@ -358,10 +365,12 @@ export default function Reports() {
     return `${day}/${month}/${year}`;
   };
 
-  // Calculate total revenue from report data
+  // Calculate total revenue from report data (excluding free items for saleslab)
   const calculateTotalRevenue = useCallback(() => {
     if (selectedReport === 'salelab') {
-      return salesData.reduce((total, sale) => total + (sale.totalAmount || 0), 0);
+      return salesData
+        .filter(sale => sale.paymentMethod !== 'ฟรี') // Exclude free items
+        .reduce((total, sale) => total + (sale.totalAmount || 0), 0);
     } else if (selectedReport === 'vts' || selectedReport === 'lab') {
       // For VTS and Lab reports, we don't have revenue data
       return 0;
@@ -525,7 +534,7 @@ export default function Reports() {
                         <p className="text-xs text-muted-foreground">คนไข้วันนี้</p>
                         <p className="text-lg font-bold text-foreground">
                           {selectedReport === 'vts' || selectedReport === 'lab' ? visitorData.length : 
-                           selectedReport === 'salelab' ? salesData.length : 
+                           selectedReport === 'salelab' ? salesData.filter(sale => sale.paymentMethod !== 'ฟรี').length : 
                            reportData.length}
                         </p>
                       </div>
@@ -960,7 +969,7 @@ export default function Reports() {
 
                   <div className="flex justify-between items-center mt-3 pt-3 border-t border-border">
                     <div className="text-xs text-muted-foreground">
-                      แสดง {selectedReport === 'vts' ? visitorData.length : selectedReport === 'salelab' ? salesData.length : reportData.length} รายการ จากทั้งหมด {selectedReport === 'vts' ? visitorData.length : selectedReport === 'salelab' ? salesData.length : reportData.length} รายการ
+                      แสดง {selectedReport === 'vts' ? visitorData.length : selectedReport === 'salelab' ? salesData.filter(sale => sale.paymentMethod !== 'ฟรี').length : reportData.length} รายการ จากทั้งหมด {selectedReport === 'vts' ? visitorData.length : selectedReport === 'salelab' ? salesData.filter(sale => sale.paymentMethod !== 'ฟรี').length : reportData.length} รายการ
                       {selectedDepartment && selectedDepartment !== 'all' && (
                         <span className="ml-2">
                           • หน่วยงาน: {departments.find(d => d.id === selectedDepartment)?.name}
@@ -973,7 +982,7 @@ export default function Reports() {
                         size="sm"
                         className="h-8 text-xs"
                         onClick={() => window.print()}
-                        disabled={(selectedReport === 'vts' ? visitorData.length : selectedReport === 'salelab' ? salesData.length : reportData.length) === 0}
+                        disabled={(selectedReport === 'vts' ? visitorData.length : selectedReport === 'salelab' ? salesData.filter(sale => sale.paymentMethod !== 'ฟรี').length : reportData.length) === 0}
                       >
                         <FileText className="h-3 w-3 mr-1" />
                         พิมพ์รายงาน
@@ -982,7 +991,7 @@ export default function Reports() {
                         size="sm" 
                         className="bg-gradient-success hover:opacity-90 h-8 text-xs"
                         onClick={handleExportPDF}
-                        disabled={(selectedReport === 'vts' ? visitorData.length : selectedReport === 'salelab' ? salesData.length : reportData.length) === 0}
+                        disabled={(selectedReport === 'vts' ? visitorData.length : selectedReport === 'salelab' ? salesData.filter(sale => sale.paymentMethod !== 'ฟรี').length : reportData.length) === 0}
                       >
                         <Download className="h-3 w-3 mr-1" />
                         ดาวน์โหลด PDF

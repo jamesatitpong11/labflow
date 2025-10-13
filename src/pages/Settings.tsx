@@ -763,7 +763,7 @@ export default function Settings() {
               </CardHeader>
               <CardContent className="pt-6 space-y-4">
                 <div className="space-y-2">
-                  <Label htmlFor="test-code" className="text-sm font-medium text-gray-700">
+                  <Label htmlFor="test-code" className="text-sm font-medium text-foreground">
                     รหัสการตรวจ <span className="text-red-500">*</span>
                   </Label>
                   <Input
@@ -776,7 +776,7 @@ export default function Settings() {
                 </div>
                 
                 <div className="space-y-2">
-                  <Label htmlFor="test-name" className="text-sm font-medium text-gray-700">
+                  <Label htmlFor="test-name" className="text-sm font-medium text-foreground">
                     ชื่อการตรวจ <span className="text-red-500">*</span>
                   </Label>
                   <Input
@@ -789,7 +789,7 @@ export default function Settings() {
                 </div>
                 
                 <div className="space-y-2">
-                  <Label htmlFor="test-price" className="text-sm font-medium text-gray-700">
+                  <Label htmlFor="test-price" className="text-sm font-medium text-foreground">
                     ราคา (บาท) <span className="text-red-500">*</span>
                   </Label>
                   <Input
@@ -803,7 +803,7 @@ export default function Settings() {
                 </div>
                 
                 <div className="space-y-2">
-                  <Label htmlFor="test-category" className="text-sm font-medium text-gray-700">
+                  <Label htmlFor="test-category" className="text-sm font-medium text-foreground">
                     หมวดหมู่
                   </Label>
                   <Select value={labTestCategory} onValueChange={setLabTestCategory}>
@@ -911,8 +911,8 @@ export default function Settings() {
               <CardContent className="p-0">
                 <div className="max-h-96 overflow-y-auto">
                   {isLoadingLabTests ? (
-                    <div className="p-8 text-center text-gray-500">
-                      <RefreshCw className="h-8 w-8 mx-auto mb-4 text-gray-300 animate-spin" />
+                    <div className="p-8 text-center text-muted-foreground">
+                      <RefreshCw className="h-8 w-8 mx-auto mb-4 text-muted-foreground animate-spin" />
                       <p className="text-lg font-medium mb-2">กำลังโหลดรายการตรวจ...</p>
                     </div>
                   ) : labTests
@@ -921,19 +921,19 @@ export default function Settings() {
                       (test.code && test.code.toLowerCase().includes(searchTerm.toLowerCase()))
                     )
                     .map((test, index) => (
-                    <div key={test._id} className={`p-4 border-b border-gray-100 hover:bg-gray-50 transition-colors duration-150 ${index % 2 === 0 ? 'bg-white' : 'bg-gray-25'}`}>
+                    <div key={test._id} className={`p-4 border-b border-border hover:bg-muted/50 transition-colors duration-150 ${index % 2 === 0 ? 'bg-background' : 'bg-muted/20'}`}>
                       <div className="flex items-center justify-between">
                         <div className="flex-1">
                           <div className="flex items-center gap-3 mb-2">
-                            <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
+                            <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-300">
                               {test.code}
                             </span>
-                            <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
+                            <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300">
                               {test.category}
                             </span>
                           </div>
-                          <h3 className="font-medium text-gray-900 mb-1">{test.name}</h3>
-                          <p className="text-lg font-semibold text-blue-600">
+                          <h3 className="font-medium text-foreground mb-1">{test.name}</h3>
+                          <p className="text-lg font-semibold text-blue-600 dark:text-blue-400">
                             ฿{test.price.toLocaleString()}
                           </p>
                         </div>
@@ -941,7 +941,7 @@ export default function Settings() {
                           <Button 
                             variant="ghost" 
                             size="sm" 
-                            className="text-blue-600 hover:text-blue-800 hover:bg-blue-50"
+                            className="text-blue-600 hover:text-blue-800 hover:bg-blue-50 dark:text-blue-400 dark:hover:text-blue-300 dark:hover:bg-blue-900/30"
                             onClick={() => startEditLabTest(test)}
                           >
                             <Edit className="h-4 w-4" />
@@ -949,7 +949,7 @@ export default function Settings() {
                           <Button 
                             variant="ghost" 
                             size="sm" 
-                            className="text-red-600 hover:text-red-800 hover:bg-red-50"
+                            className="text-red-600 hover:text-red-800 hover:bg-red-50 dark:text-red-400 dark:hover:text-red-300 dark:hover:bg-red-900/30"
                             onClick={async () => {
                               if (!test._id) return;
                               
@@ -981,8 +981,8 @@ export default function Settings() {
                     (test.name && test.name.toLowerCase().includes(searchTerm.toLowerCase())) ||
                     (test.code && test.code.toLowerCase().includes(searchTerm.toLowerCase()))
                   ).length === 0 && (
-                    <div className="p-8 text-center text-gray-500">
-                      <TestTube className="h-12 w-12 mx-auto mb-4 text-gray-300" />
+                    <div className="p-8 text-center text-muted-foreground">
+                      <TestTube className="h-12 w-12 mx-auto mb-4 text-muted-foreground" />
                       <p className="text-lg font-medium mb-2">ไม่พบรายการตรวจ</p>
                       <p className="text-sm">ลองค้นหาด้วยคำอื่น หรือเพิ่มรายการตรวจใหม่</p>
                     </div>
@@ -1009,7 +1009,7 @@ export default function Settings() {
               </CardHeader>
               <CardContent className="pt-6 space-y-4">
                 <div className="space-y-2">
-                  <Label htmlFor="group-code" className="text-sm font-medium text-gray-700">
+                  <Label htmlFor="group-code" className="text-sm font-medium text-foreground">
                     รหัสสินค้า <span className="text-red-500">*</span>
                   </Label>
                   <Input
@@ -1022,7 +1022,7 @@ export default function Settings() {
                 </div>
                 
                 <div className="space-y-2">
-                  <Label htmlFor="group-name" className="text-sm font-medium text-gray-700">
+                  <Label htmlFor="group-name" className="text-sm font-medium text-foreground">
                     ชื่อแพ็กเกจ <span className="text-red-500">*</span>
                   </Label>
                   <Input
@@ -1035,7 +1035,7 @@ export default function Settings() {
                 </div>
                 
                 <div className="space-y-2">
-                  <Label htmlFor="group-price" className="text-sm font-medium text-gray-700">
+                  <Label htmlFor="group-price" className="text-sm font-medium text-foreground">
                     ราคา (บาท) <span className="text-red-500">*</span>
                   </Label>
                   <Input
@@ -1049,11 +1049,11 @@ export default function Settings() {
                 </div>
                 
                 <div className="space-y-2">
-                  <Label className="text-sm font-medium text-gray-700">
+                  <Label className="text-sm font-medium text-foreground">
                     รายการตรวจ <span className="text-red-500">*</span>
                   </Label>
-                  <div className="border border-gray-200 rounded-lg">
-                    <div className="p-3 border-b border-gray-200">
+                  <div className="border border-border rounded-lg">
+                    <div className="p-3 border-b border-border">
                       <Input
                         placeholder="ค้นหารายการตรวจ..."
                         value={labTestSearchTerm}
@@ -1064,11 +1064,11 @@ export default function Settings() {
                     <div className="p-3 max-h-48 overflow-y-auto">
                       {isLoadingLabTests ? (
                         <div className="text-center py-4">
-                          <RefreshCw className="h-6 w-6 mx-auto mb-2 text-gray-300 animate-spin" />
-                          <p className="text-sm text-gray-500">กำลังโหลดรายการตรวจ...</p>
+                          <RefreshCw className="h-6 w-6 mx-auto mb-2 text-muted-foreground animate-spin" />
+                          <p className="text-sm text-muted-foreground">กำลังโหลดรายการตรวจ...</p>
                         </div>
                       ) : labTests.length === 0 ? (
-                        <p className="text-sm text-gray-500 text-center py-4">ไม่มีรายการตรวจ</p>
+                        <p className="text-sm text-muted-foreground text-center py-4">ไม่มีรายการตรวจ</p>
                       ) : (
                         <div className="space-y-2">
                           {labTests
@@ -1092,9 +1092,9 @@ export default function Settings() {
                                 }}
                                 className="rounded border-gray-300 text-purple-600 focus:ring-purple-500"
                               />
-                              <label htmlFor={`test-${test._id}`} className="flex-1 text-sm cursor-pointer">
+                              <label htmlFor={`test-${test._id}`} className="flex-1 text-sm cursor-pointer text-foreground">
                                 <span className="font-medium">{test.code}</span> - {test.name}
-                                <span className="text-gray-500 ml-2">฿{test.price.toLocaleString()}</span>
+                                <span className="text-muted-foreground ml-2">฿{test.price.toLocaleString()}</span>
                               </label>
                             </div>
                           ))}
@@ -1103,7 +1103,7 @@ export default function Settings() {
                             (test.code && test.code.toLowerCase().includes(labTestSearchTerm.toLowerCase())) ||
                             (test.category && test.category.toLowerCase().includes(labTestSearchTerm.toLowerCase()))
                           ).length === 0 && labTestSearchTerm && (
-                            <p className="text-sm text-gray-500 text-center py-4">ไม่พบรายการตรวจที่ค้นหา</p>
+                            <p className="text-sm text-muted-foreground text-center py-4">ไม่พบรายการตรวจที่ค้นหา</p>
                           )}
                         </div>
                       )}
@@ -1111,7 +1111,7 @@ export default function Settings() {
                   </div>
                   {selectedLabTests.length > 0 && (
                     <div className="mt-2">
-                      <p className="text-xs text-gray-600">เลือกแล้ว {selectedLabTests.length} รายการ</p>
+                      <p className="text-xs text-muted-foreground">เลือกแล้ว {selectedLabTests.length} รายการ</p>
                     </div>
                   )}
                 </div>
@@ -1207,8 +1207,8 @@ export default function Settings() {
               <CardContent className="p-0">
                 <div className="max-h-96 overflow-y-auto">
                   {isLoadingLabGroups ? (
-                    <div className="p-8 text-center text-gray-500">
-                      <RefreshCw className="h-8 w-8 mx-auto mb-4 text-gray-300 animate-spin" />
+                    <div className="p-8 text-center text-muted-foreground">
+                      <RefreshCw className="h-8 w-8 mx-auto mb-4 text-muted-foreground animate-spin" />
                       <p className="text-lg font-medium mb-2">กำลังโหลดแพ็กเกจ...</p>
                     </div>
                   ) : labGroups
@@ -1217,32 +1217,32 @@ export default function Settings() {
                       (group.code && group.code.toLowerCase().includes(labGroupSearchTerm.toLowerCase()))
                     )
                     .map((group, index) => (
-                    <div key={group._id} className={`p-4 border-b border-gray-100 hover:bg-gray-50 transition-colors duration-150 ${index % 2 === 0 ? 'bg-white' : 'bg-gray-25'}`}>
+                    <div key={group._id} className={`p-4 border-b border-border hover:bg-muted/50 transition-colors duration-150 ${index % 2 === 0 ? 'bg-background' : 'bg-muted/20'}`}>
                       <div className="flex items-center justify-between">
                         <div className="flex-1">
                           <div className="flex items-center gap-3 mb-2">
-                            <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-purple-100 text-purple-800">
+                            <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-purple-100 text-purple-800 dark:bg-purple-900/30 dark:text-purple-300">
                               {group.code}
                             </span>
-                            <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-orange-100 text-orange-800">
+                            <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-orange-100 text-orange-800 dark:bg-orange-900/30 dark:text-orange-300">
                               {group.labTests?.length || 0} รายการ
                             </span>
                           </div>
-                          <h3 className="font-medium text-gray-900 mb-1">{group.name}</h3>
-                          <p className="text-lg font-semibold text-purple-600 mb-2">
+                          <h3 className="font-medium text-foreground mb-1">{group.name}</h3>
+                          <p className="text-lg font-semibold text-purple-600 dark:text-purple-400 mb-2">
                             ฿{group.price.toLocaleString()}
                           </p>
                           <div className="flex flex-wrap gap-1">
                             {group.labTests?.slice(0, 3).map((testId, idx) => {
                               const test = labTests.find(t => t._id === testId);
                               return test ? (
-                                <span key={idx} className="text-xs bg-gray-100 text-gray-700 px-2 py-1 rounded">
+                                <span key={idx} className="text-xs bg-muted text-muted-foreground px-2 py-1 rounded">
                                   {test.code}
                                 </span>
                               ) : null;
                             })}
                             {(group.labTests?.length || 0) > 3 && (
-                              <span className="text-xs bg-gray-100 text-gray-700 px-2 py-1 rounded">
+                              <span className="text-xs bg-muted text-muted-foreground px-2 py-1 rounded">
                                 +{(group.labTests?.length || 0) - 3} อื่นๆ
                               </span>
                             )}
@@ -1252,7 +1252,7 @@ export default function Settings() {
                           <Button 
                             variant="ghost" 
                             size="sm" 
-                            className="text-purple-600 hover:text-purple-800 hover:bg-purple-50"
+                            className="text-purple-600 hover:text-purple-800 hover:bg-purple-50 dark:text-purple-400 dark:hover:text-purple-300 dark:hover:bg-purple-900/30"
                             onClick={() => startEditLabGroup(group)}
                           >
                             <Edit className="h-4 w-4" />
@@ -1260,7 +1260,7 @@ export default function Settings() {
                           <Button 
                             variant="ghost" 
                             size="sm" 
-                            className="text-red-600 hover:text-red-800 hover:bg-red-50"
+                            className="text-red-600 hover:text-red-800 hover:bg-red-50 dark:text-red-400 dark:hover:text-red-300 dark:hover:bg-red-900/30"
                             onClick={async () => {
                               if (!group._id) return;
                               
@@ -1292,8 +1292,8 @@ export default function Settings() {
                     (group.name && group.name.toLowerCase().includes(labGroupSearchTerm.toLowerCase())) ||
                     (group.code && group.code.toLowerCase().includes(labGroupSearchTerm.toLowerCase()))
                   ).length === 0 && !isLoadingLabGroups && (
-                    <div className="p-8 text-center text-gray-500">
-                      <TestTube className="h-12 w-12 mx-auto mb-4 text-gray-300" />
+                    <div className="p-8 text-center text-muted-foreground">
+                      <TestTube className="h-12 w-12 mx-auto mb-4 text-muted-foreground" />
                       <p className="text-lg font-medium mb-2">ไม่พบแพ็กเกจ</p>
                       <p className="text-sm">ลองค้นหาด้วยคำอื่น หรือเพิ่มแพ็กเกจใหม่</p>
                     </div>
