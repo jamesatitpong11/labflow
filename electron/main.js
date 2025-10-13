@@ -854,17 +854,51 @@ ipcMain.handle('print-document', async (event, options) => {
     await printWindow.loadURL(`data:text/html;charset=utf-8,${encodeURIComponent(htmlContent)}`);
     
     return new Promise((resolve) => {
+      let isResolved = false;
+      
+      // Set timeout to prevent hanging
+      const timeoutId = setTimeout(() => {
+        if (!isResolved) {
+          console.log('Medical record print timeout');
+          isResolved = true;
+          if (!printWindow.isDestroyed()) {
+            printWindow.close();
+          }
+          resolve({ success: false, message: 'การพิมพ์เวชระเบียนหมดเวลา (Timeout)' });
+        }
+      }, 10000);
+
+      // Handle window closed event (user cancellation)
+      printWindow.on('closed', () => {
+        if (!isResolved) {
+          console.log('Medical record print window closed (user cancelled)');
+          isResolved = true;
+          clearTimeout(timeoutId);
+          resolve({ success: false, message: 'การพิมพ์เวชระเบียนถูกยกเลิก' });
+        }
+      });
+
       printWindow.webContents.print(electronPrintOptions, (success, failureReason) => {
-        printWindow.close();
-        if (success) {
-          const message = printerName ? 
-            `ส่งใบเวชระเบียนไปยัง ${printerName} แล้ว` : 
-            'พิมพ์เอกสารสำเร็จ';
-          console.log('Print success:', message);
-          resolve({ success: true, message });
-        } else {
-          console.error('Print failed:', failureReason);
-          resolve({ success: false, message: `เกิดข้อผิดพลาด: ${failureReason}` });
+        if (!isResolved) {
+          isResolved = true;
+          clearTimeout(timeoutId);
+          
+          setTimeout(() => {
+            if (!printWindow.isDestroyed()) {
+              printWindow.close();
+            }
+          }, 500);
+          
+          if (success) {
+            const message = printerName ? 
+              `ส่งใบเวชระเบียนไปยัง ${printerName} แล้ว` : 
+              'พิมพ์เอกสารสำเร็จ';
+            console.log('Print success:', message);
+            resolve({ success: true, message });
+          } else {
+            console.error('Print failed:', failureReason);
+            resolve({ success: false, message: `เกิดข้อผิดพลาด: ${failureReason}` });
+          }
         }
       });
     });
@@ -1011,25 +1045,56 @@ ipcMain.handle('print-sticker', async (event, options) => {
     
     console.log('🚀 Starting print process...');
     return new Promise((resolve) => {
+      let isResolved = false;
+      
+      // Set timeout to prevent hanging
+      const timeoutId = setTimeout(() => {
+        if (!isResolved) {
+          console.log('⏰ Sticker print timeout');
+          isResolved = true;
+          if (!printWindow.isDestroyed()) {
+            printWindow.close();
+          }
+          resolve({ success: false, message: 'การพิมพ์สติ๊กเกอร์หมดเวลา (Timeout)' });
+        }
+      }, 10000);
+
+      // Handle window closed event (user cancellation)
+      printWindow.on('closed', () => {
+        if (!isResolved) {
+          console.log('🚪 Sticker print window closed (user cancelled)');
+          isResolved = true;
+          clearTimeout(timeoutId);
+          resolve({ success: false, message: 'การพิมพ์สติ๊กเกอร์ถูกยกเลิก' });
+        }
+      });
+
       printWindow.webContents.print(electronPrintOptions, (success, failureReason) => {
         console.log('📊 Print callback - Success:', success, 'Reason:', failureReason);
         
-        // Close window faster after printing
-        setTimeout(() => {
-          printWindow.close();
-        }, 200);
-        
-        if (success) {
-          const message = printerName ? 
-            `พิมพ์สติ๊กเกอร์ไปยัง ${printerName} สำเร็จ` : 
-            'พิมพ์สติ๊กเกอร์สำเร็จ';
-          console.log('✅ Sticker print success:', message);
-          resolve({ success: true, message });
-        } else {
-          const errorMessage = `เกิดข้อผิดพลาดในการพิมพ์: ${failureReason || 'ไม่ทราบสาเหตุ'}`;
-          console.error('❌ Sticker print failed:', errorMessage);
-          console.error('🔧 Troubleshooting: Check if printer is online and has correct drivers');
-          resolve({ success: false, message: errorMessage });
+        if (!isResolved) {
+          isResolved = true;
+          clearTimeout(timeoutId);
+          
+          // Close window faster after printing
+          setTimeout(() => {
+            if (!printWindow.isDestroyed()) {
+              printWindow.close();
+            }
+          }, 200);
+          
+          if (success) {
+            const message = printerName ? 
+              `พิมพ์สติ๊กเกอร์ไปยัง ${printerName} สำเร็จ` : 
+              'พิมพ์สติ๊กเกอร์สำเร็จ';
+            console.log('✅ Sticker print success:', message);
+            resolve({ success: true, message });
+          } else {
+            const errorMessage = `เกิดข้อผิดพลาดในการพิมพ์: ${failureReason || 'ไม่ทราบสาเหตุ'}`;
+            console.error('❌ Sticker print failed:', errorMessage);
+            console.error('🔧 Troubleshooting: Check if printer is online and has correct drivers');
+            resolve({ success: false, message: errorMessage });
+          }
         }
       });
     });
@@ -1206,24 +1271,63 @@ ipcMain.handle('print-receipt', async (event, printerName, receiptData) => {
     await printWindow.loadURL(`data:text/html;charset=utf-8,${encodeURIComponent(htmlContent)}`);
     
     return new Promise((resolve) => {
+      let isResolved = false;
+      
       // Set timeout to prevent hanging
       const timeoutId = setTimeout(() => {
-        console.log('Receipt print timeout');
-        printWindow.close();
-        resolve({ success: false, message: 'การพิมพ์ใบเสร็จหมดเวลา (Timeout)' });
-      }, 15000); // 15 seconds timeout
+        if (!isResolved) {
+          console.log('Receipt print timeout');
+          isResolved = true;
+          if (!printWindow.isDestroyed()) {
+            printWindow.close();
+          }
+          resolve({ success: false, message: 'การพิมพ์ใบเสร็จหมดเวลา (Timeout)' });
+        }
+      }, 10000); // Reduced to 10 seconds timeout
+
+      // Handle window closed event (user cancellation)
+      printWindow.on('closed', () => {
+        if (!isResolved) {
+          console.log('Receipt print window closed (user cancelled)');
+          isResolved = true;
+          clearTimeout(timeoutId);
+          resolve({ success: false, message: 'การพิมพ์ใบเสร็จถูกยกเลิก' });
+        }
+      });
+
+      // Handle print dialog cancellation
+      printWindow.webContents.on('print-cancelled', () => {
+        if (!isResolved) {
+          console.log('Receipt print cancelled by user');
+          isResolved = true;
+          clearTimeout(timeoutId);
+          if (!printWindow.isDestroyed()) {
+            printWindow.close();
+          }
+          resolve({ success: false, message: 'การพิมพ์ใบเสร็จถูกยกเลิก' });
+        }
+      });
 
       printWindow.webContents.print(electronPrintOptions, (success, failureReason) => {
-        clearTimeout(timeoutId);
-        printWindow.close();
-        
-        if (success) {
-          const message = `พิมพ์ใบเสร็จไปยัง ${printerName} สำเร็จ`;
-          console.log('Receipt print success:', message);
-          resolve({ success: true, message });
-        } else {
-          console.error('Receipt print failed:', failureReason);
-          resolve({ success: false, message: `เกิดข้อผิดพลาด: ${failureReason || 'ไม่ทราบสาเหตุ'}` });
+        if (!isResolved) {
+          isResolved = true;
+          clearTimeout(timeoutId);
+          
+          // Close window with delay to ensure print job completes
+          setTimeout(() => {
+            if (!printWindow.isDestroyed()) {
+              printWindow.close();
+            }
+          }, 500);
+          
+          if (success) {
+            const message = `พิมพ์ใบเสร็จไปยัง ${printerName} สำเร็จ`;
+            console.log('Receipt print success:', message);
+            resolve({ success: true, message });
+          } else {
+            console.error('Receipt print failed:', failureReason);
+            resolve({ success: false, message: `เกิดข้อผิดพลาด: ${failureReason || 'ไม่ทราบสาเหตุ'}` });
+          }
         }
       });
     });

@@ -1311,6 +1311,9 @@ export default function LabOrders() {
         description: `บันทึกรายการตรวจและพิมพ์ใบเสร็จ A4 สำหรับ Visit: ${patientInfo.visitNumber} เรียบร้อยแล้ว`,
       });
 
+      // Scroll to top after successful checkout
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+
     } catch (error) {
       console.error('Checkout error:', error);
       toast({

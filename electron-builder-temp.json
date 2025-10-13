@@ -1,0 +1,53 @@
+{
+  "appId": "com.labflow.clinic",
+  "productName": "LabFlow Clinic",
+  "directories": {
+    "output": "dist-electron"
+  },
+  "files": [
+    "dist/**/*",
+    "electron/**/*",
+    "backend/**/*",
+    "LabFlow-Launcher.bat",
+    "LabFlow-Smart-Launcher.bat",
+    "public/iconlabflow.ico",
+    "node_modules/**/*",
+    "!node_modules/*/{CHANGELOG.md,README.md,README,readme.md,readme}",
+    "!node_modules/*/{test,__tests__,tests,powered-test,example,examples}",
+    "!node_modules/*.d.ts",
+    "!node_modules/.bin",
+    "!**/*.{iml,o,hprof,orig,pyc,pyo,rbc,swp,csproj,sln,xproj}",
+    "!.editorconfig",
+    "!**/._*",
+    "!**/{.DS_Store,.git,.hg,.svn,CVS,RCS,SCCS,.gitignore,.gitattributes}",
+    "!**/{__pycache__,thumbs.db,.flowconfig,.idea,.vs,.nyc_output}",
+    "!**/{appveyor.yml,.travis.yml,circle.yml}",
+    "!**/{npm-debug.log,yarn.lock,.yarn-integrity,.yarn-metadata.json}"
+  ],
+  "win": {
+    "target": "nsis",
+    "icon": "public/iconlabflow.ico",
+    "requestedExecutionLevel": "asInvoker"
+  },
+  "nsis": {
+    "oneClick": false,
+    "allowToChangeInstallationDirectory": true,
+    "createDesktopShortcut": true,
+    "createStartMenuShortcut": true,
+    "shortcutName": "LabFlow Clinic",
+    "allowElevation": true,
+    "installerIcon": "public/iconlabflow.ico",
+    "uninstallerIcon": "public/iconlabflow.ico",
+    "installerHeaderIcon": "public/iconlabflow.ico",
+    "deleteAppDataOnUninstall": false,
+    "runAfterFinish": false,
+    "artifactName": "LabFlow-Clinic-Setup-${version}.exe",
+    "displayLanguageSelector": false
+  },
+  "compression": "maximum",
+  "forceCodeSigning": false,
+  "asarUnpack": [
+    "backend/**/*",
+    "node_modules/**/*"
+  ]
+}
