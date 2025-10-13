@@ -34,7 +34,7 @@ const menuItems = [
   { title: "แดชบอร์ด", url: "/dashboard", icon: Activity },
   { title: "เวชระเบียน", url: "/medical-records", icon: FileText },
   { title: "ลงทะเบียนคนไข้", url: "/patient-registration", icon: Users },
-  { title: "เปิด Visit", url: "/visit-management", icon: Plus },
+  //{ title: "เปิด Visit", url: "/visit-management", icon: Plus },
   { title: "ซื้อรายการตรวจ", url: "/lab-orders", icon: ShoppingCart },
   { title: "ลงผลการตรวจ", url: "/lab-results", icon: ClipboardList },
   { title: "รายงาน", url: "/reports", icon: BarChart3 },

@@ -1029,6 +1029,69 @@ export default function PatientRegistration() {
     }
   };
 
+  // Debug function to test sticker printing
+  const handleTestSticker = async () => {
+    try {
+      showInfoToast({
+        title: "ทดสอบการพิมพ์สติ๊กเกอร์",
+        description: "กำลังทดสอบระบบพิมพ์สติ๊กเกอร์",
+      });
+
+      // Get sticker printer from settings
+      const { getPrinterByType } = await import('@/lib/printer-utils');
+      const stickerPrinterName = getPrinterByType('sticker');
+      
+      console.log('🧪 Test - Sticker printer configuration:', stickerPrinterName);
+      
+      if (!stickerPrinterName) {
+        showWarningToast({
+          title: "ไม่พบเครื่องพิมพ์สติ๊กเกอร์",
+          description: "กรุณาไปที่หน้า 'ตั้งค่า > เครื่องพิมพ์' เพื่อกำหนดเครื่องพิมพ์สติ๊กเกอร์",
+        });
+        return;
+      }
+
+      // Create test data
+      const testStickerData = {
+        idCard: '1234567890123',
+        title: 'นาย',
+        firstName: 'ทดสอบ',
+        lastName: 'ระบบ',
+        visitNumber: 'V' + Date.now().toString().slice(-6),
+        ln: '67001',
+        age: '35',
+        visitDate: new Date().toLocaleDateString('th-TH', {
+          day: '2-digit',
+          month: '2-digit',
+          year: '2-digit'
+        }),
+        visitTime: new Date().toLocaleTimeString('th-TH', {
+          hour: '2-digit',
+          minute: '2-digit'
+        }),
+        printerName: stickerPrinterName
+      };
+
+      console.log('🧪 Test sticker data:', testStickerData);
+
+      // Print the test sticker
+      const { printSticker } = await import('@/utils/stickerPrinter');
+      await printSticker(testStickerData);
+      
+      showSuccessToast({
+        title: "ทดสอบพิมพ์สติ๊กเกอร์สำเร็จ",
+        description: `ส่งสติ๊กเกอร์ทดสอบไปยัง ${stickerPrinterName} เรียบร้อยแล้ว`,
+      });
+      
+    } catch (error) {
+      console.error('🧪 Test sticker error:', error);
+      showErrorToast({
+        title: "ทดสอบการพิมพ์สติ๊กเกอร์ล้มเหลว",
+        description: error instanceof Error ? error.message : 'เกิดข้อผิดพลาดในการทดสอบ',
+      });
+    }
+  };
+
   const handlePrintSticker = async (visit: VisitData) => {
     try {
       showInfoToast({
@@ -1605,19 +1668,30 @@ export default function PatientRegistration() {
                   รายการ Visit ที่เปิดล่าสุด
                 </CardDescription>
               </div>
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={() => setShowVisitHistory(!showVisitHistory)}
-                className="h-6 w-6 p-0 hover:bg-primary/10"
-                title={showVisitHistory ? "ซ่อนประวัติ Visit" : "แสดงประวัติ Visit"}
-              >
-                {showVisitHistory ? (
-                  <ChevronUp className="h-3 w-3" />
-                ) : (
-                  <ChevronDown className="h-3 w-3" />
-                )}
-              </Button>
+              <div className="flex items-center gap-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={handleTestSticker}
+                  className="h-6 px-2 text-xs bg-yellow-50 border-yellow-200 text-yellow-800 hover:bg-yellow-100"
+                  title="ทดสอบการพิมพ์สติ๊กเกอร์"
+                >
+                  🧪 ทดสอบ
+                </Button>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => setShowVisitHistory(!showVisitHistory)}
+                  className="h-6 w-6 p-0 hover:bg-primary/10"
+                  title={showVisitHistory ? "ซ่อนประวัติ Visit" : "แสดงประวัติ Visit"}
+                >
+                  {showVisitHistory ? (
+                    <ChevronUp className="h-3 w-3" />
+                  ) : (
+                    <ChevronDown className="h-3 w-3" />
+                  )}
+                </Button>
+              </div>
             </div>
           </CardHeader>
           <div className={`transition-all duration-300 ease-in-out overflow-hidden ${

@@ -1,0 +1,364 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>Universal Sticker Template - Browser & Electron Compatible</title>
+  <link href="https://fonts.googleapis.com/css2?family=Itim&display=swap" rel="stylesheet">
+  <script src="https://cdn.jsdelivr.net/npm/jsbarcode@3.11.5/dist/JsBarcode.all.min.js"></script>
+  <style>
+    @page {
+      size: 150mm 25mm;
+      margin: 0mm;
+    }
+    @media print {
+      * {
+        -webkit-print-color-adjust: exact !important;
+        print-color-adjust: exact !important;
+      }
+      
+      /* Electron-specific print adjustments */
+      body {
+        zoom: 1 !important;
+        transform: scale(1) !important;
+        -webkit-transform: scale(1) !important;
+      }
+      
+      .page-container {
+        zoom: 1 !important;
+        transform: none !important;
+        -webkit-transform: none !important;
+      }
+    }
+    body { 
+      font-family: 'TH Sarabun New', 'THSarabunNew', 'Itim', 'Arial', sans-serif; 
+      margin: 0;
+      padding: 0;
+      font-size: 8px; 
+      line-height: 1;
+      width: 100%;
+      height: 100%;
+      box-sizing: border-box;
+      -webkit-font-smoothing: antialiased;
+      -moz-osx-font-smoothing: grayscale;
+      text-rendering: optimizeLegibility;
+      image-rendering: -webkit-optimize-contrast;
+      image-rendering: crisp-edges;
+      
+      /* Force consistent rendering */
+      zoom: 1;
+      -webkit-text-size-adjust: 100%;
+      -ms-text-size-adjust: 100%;
+    }
+    .page-container {
+      width: 150mm;
+      height: 25mm;
+      display: flex;
+      padding: 0;
+      margin: 0;
+      align-items: center;
+      box-sizing: border-box;
+      
+      /* Ensure consistent positioning */
+      position: relative;
+      overflow: hidden;
+    }
+    .sticker {
+      width: 50mm;
+      height: 25mm;
+      padding: 1mm;
+      box-sizing: border-box;
+      display: flex;
+      text-align: left;
+      font-size: 8px;
+      line-height: 0.8;
+      background: white;
+      position: relative;
+    }
+    .sticker:nth-child(1) {
+      margin-left: 1mm;
+    }
+    .sticker:nth-child(2) {
+      margin-left: 1.5mm;
+    }
+    .sticker:nth-child(3) {
+      margin-left: 1.5mm;
+      margin-right: 1mm;
+    }
+    .visit-number-vertical {
+      position: absolute;
+      left: 0.5mm;
+      top: 1mm;
+      bottom: 1mm;
+      width: 3mm;
+      writing-mode: vertical-rl;
+      text-orientation: mixed;
+      font-size: 8pt;
+      font-weight: bold;
+      color: black;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    .content-area {
+      flex: 1;
+      margin-left: 4mm;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      padding: 0 0;
+    }
+    .ln-number {
+      font-size: 12pt;
+      font-weight: bold;
+      text-align: left;
+      margin-bottom: 1mm;
+      color: #000000;
+      line-height: 1.0;
+    }
+    .patient-title-name {
+      font-size: 11pt;
+      font-weight: bold;
+      text-align: left;
+      line-height: 1.0;
+      margin-bottom: 0.5mm;
+      color: #000000;
+    }
+    .patient-lastname {
+      font-size: 11pt;
+      font-weight: bold;
+      text-align: left;
+      line-height: 1.0;
+      margin-bottom: 0.5mm;
+      color: #000000;
+    }
+    .visit-info {
+      font-size: 9pt;
+      font-weight: bold;
+      text-align: left;
+      line-height: 1.0;
+      margin-bottom: 1mm;
+      width: 100%;
+      color: #000000;
+    }
+    .barcode {
+      height: 16mm;
+      width: 95%;
+      margin: 0.5mm auto 0 auto;
+      background: white;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      image-rendering: -webkit-optimize-contrast;
+      image-rendering: crisp-edges;
+      flex-grow: 1;
+    }
+    .barcode svg {
+      height: 16mm;
+      width: 100%;
+      shape-rendering: crispEdges;
+      image-rendering: -webkit-optimize-contrast;
+      image-rendering: crisp-edges;
+    }
+    
+    /* Debug info for browser testing */
+    .debug-info {
+      position: fixed;
+      top: 10px;
+      right: 10px;
+      background: rgba(255, 255, 0, 0.9);
+      padding: 10px;
+      font-size: 12px;
+      border: 2px solid #333;
+      z-index: 1000;
+      max-width: 300px;
+      font-family: monospace;
+    }
+    
+    @media print {
+      .debug-info {
+        display: none !important;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="debug-info" id="debugInfo">
+    Environment: <span id="envType">Detecting...</span><br>
+    Status: <span id="status">Loading...</span>
+  </div>
+  
+  <div class="page-container">
+    <!-- Sticker 1 -->
+    <div class="sticker">
+      <div class="visit-number-vertical">TEST001</div>
+      <div class="content-area">
+        <div class="ln-number">LN: 12345</div>
+        <div class="patient-title-name">นายทดสอบ</div>
+        <div class="patient-lastname">ระบบ</div>
+        <div class="visit-info">อายุ 30 ปี 10:30</div>
+        <div class="barcode">
+          <svg id="barcode1"></svg>
+        </div>
+      </div>
+    </div>
+    
+    <!-- Sticker 2 -->
+    <div class="sticker">
+      <div class="visit-number-vertical">TEST001</div>
+      <div class="content-area">
+        <div class="ln-number">LN: 12345</div>
+        <div class="patient-title-name">นายทดสอบ</div>
+        <div class="patient-lastname">ระบบ</div>
+        <div class="visit-info">อายุ 30 ปี 10:30</div>
+        <div class="barcode">
+          <svg id="barcode2"></svg>
+        </div>
+      </div>
+    </div>
+    
+    <!-- Sticker 3 -->
+    <div class="sticker">
+      <div class="visit-number-vertical">TEST001</div>
+      <div class="content-area">
+        <div class="ln-number">LN: 12345</div>
+        <div class="patient-title-name">นายทดสอบ</div>
+        <div class="patient-lastname">ระบบ</div>
+        <div class="visit-info">อายุ 30 ปี 10:30</div>
+        <div class="barcode">
+          <svg id="barcode3"></svg>
+        </div>
+      </div>
+    </div>
+  </div>
+  
+  <script>
+    // Universal environment detection and CSS adjustment
+    function applyEnvironmentFixes() {
+      const isElectron = typeof window !== 'undefined' && window.process && window.process.type === 'renderer';
+      const isStandaloneBrowser = !isElectron;
+      
+      console.log('🔧 Environment detected:', isElectron ? 'Electron' : 'Browser');
+      document.getElementById('envType').textContent = isElectron ? 'Electron' : 'Browser';
+      
+      // Create dynamic CSS for environment-specific fixes
+      const style = document.createElement('style');
+      style.id = 'environment-fixes';
+      
+      if (isElectron) {
+        // Electron-specific fixes
+        style.textContent = `
+          body {
+            zoom: 1 !important;
+            -webkit-transform: scale(1) !important;
+            transform: scale(1) !important;
+          }
+          .page-container {
+            zoom: 1 !important;
+            -webkit-transform: none !important;
+            transform: none !important;
+          }
+          .sticker {
+            -webkit-font-smoothing: antialiased !important;
+          }
+        `;
+        document.getElementById('status').textContent = 'Electron fixes applied';
+      } else {
+        // Browser-specific fixes
+        style.textContent = `
+          body {
+            zoom: 1;
+            -webkit-text-size-adjust: 100%;
+          }
+          .page-container {
+            position: relative;
+          }
+        `;
+        document.getElementById('status').textContent = 'Browser fixes applied';
+      }
+      
+      document.head.appendChild(style);
+      
+      // Apply direct style fixes
+      if (isElectron) {
+        document.body.style.webkitTransform = 'scale(1)';
+        document.body.style.transform = 'scale(1)';
+        document.body.style.zoom = '1';
+      }
+    }
+    
+    // Apply fixes as soon as possible
+    if (document.readyState === 'loading') {
+      document.addEventListener('DOMContentLoaded', applyEnvironmentFixes);
+    } else {
+      applyEnvironmentFixes();
+    }
+    
+    function generateBarcodes() {
+      try {
+        if (typeof JsBarcode !== 'undefined') {
+          console.log('🔧 Generating barcodes...');
+          document.getElementById('status').innerHTML += '<br>Generating barcodes...';
+          
+          // Generate barcodes for all three stickers
+          JsBarcode("#barcode1", "TEST001", {
+            format: "CODE128",
+            width: 2.8,
+            height: 100,
+            displayValue: false,
+            margin: 0,
+            background: "#ffffff",
+            lineColor: "#000000"
+          });
+          
+          JsBarcode("#barcode2", "TEST001", {
+            format: "CODE128",
+            width: 2.8,
+            height: 100,
+            displayValue: false,
+            margin: 0,
+            background: "#ffffff",
+            lineColor: "#000000"
+          });
+          
+          JsBarcode("#barcode3", "TEST001", {
+            format: "CODE128",
+            width: 2.8,
+            height: 100,
+            displayValue: false,
+            margin: 0,
+            background: "#ffffff",
+            lineColor: "#000000"
+          });
+          
+          console.log('✅ All barcodes generated successfully');
+          document.getElementById('status').innerHTML += '<br>✅ Barcodes ready!';
+        } else {
+          // Fallback if JsBarcode is not loaded
+          console.log('JsBarcode not loaded, retrying...');
+          setTimeout(generateBarcodes, 100);
+        }
+      } catch (error) {
+        console.error('Error generating barcode:', error);
+        document.getElementById('status').innerHTML += '<br>❌ Error: ' + error.message;
+      }
+    }
+    
+    // Try multiple ways to ensure the script runs
+    if (document.readyState === 'loading') {
+      document.addEventListener('DOMContentLoaded', generateBarcodes);
+    } else {
+      generateBarcodes();
+    }
+    
+    window.onload = generateBarcodes;
+    
+    // Faster fallbacks with shorter delays
+    setTimeout(generateBarcodes, 100);
+    setTimeout(generateBarcodes, 300);
+    setTimeout(generateBarcodes, 500);
+    
+    // Log when script is executed
+    console.log('🔧 Universal sticker template loaded at:', new Date().toISOString());
+  </script>
+</body>
+</html>

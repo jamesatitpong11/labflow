@@ -877,18 +877,25 @@ ipcMain.handle('print-document', async (event, options) => {
 
 // Print sticker (specialized for small format printing)
 ipcMain.handle('print-sticker', async (event, options) => {
+  console.log('🔥 MAIN PROCESS: print-sticker handler STARTED');
+  console.log('🔥 Event:', event);
+  console.log('🔥 Options type:', typeof options);
+  console.log('🔥 Options:', options);
+  
   try {
-    console.log('Main process: print-sticker called');
-    console.log('Raw options received:', JSON.stringify(options, null, 2));
+    console.log('🖨️ Main process: print-sticker called');
+    console.log('📋 Raw options received:', JSON.stringify(options, null, 2));
     
     // Handle both parameter formats: { printerName, content } and { printerName, htmlContent }
     const printerName = options.printerName || '';
     const content = options.htmlContent || options.content || '';
     
-    console.log('Printer name:', printerName);
-    console.log('Content type:', typeof content);
-    console.log('Content length:', content?.length);
-    console.log('Content preview:', content?.substring(0, 200));
+    console.log('🎯 Printer name:', printerName);
+    console.log('📄 Content type:', typeof content);
+    console.log('📏 Content length:', content?.length);
+    console.log('👀 Content preview:', content?.substring(0, 300));
+    console.log('🔍 Content contains barcode script:', content?.includes('JsBarcode'));
+    console.log('🔍 Content contains sticker class:', content?.includes('sticker'));
     
     if (!content) {
       console.error('❌ No content provided for sticker printing');
@@ -897,11 +904,32 @@ ipcMain.handle('print-sticker', async (event, options) => {
 
     if (!printerName) {
       console.warn('⚠️ No printer name provided, will use default printer');
+    } else {
+      // Check if printer exists and is available
+      try {
+        const printers = await mainWindow.webContents.getPrinters();
+        const targetPrinter = printers.find(p => p.name === printerName);
+        console.log('🔍 Available printers:', printers.map(p => p.name));
+        console.log('🎯 Target printer found:', !!targetPrinter);
+        
+        if (targetPrinter) {
+          console.log('✅ Printer details:', {
+            name: targetPrinter.name,
+            displayName: targetPrinter.displayName,
+            status: targetPrinter.status,
+            isDefault: targetPrinter.isDefault
+          });
+        } else {
+          console.warn('⚠️ Target printer not found in available printers list');
+        }
+      } catch (error) {
+        console.warn('⚠️ Could not check printer availability:', error.message);
+      }
     }
     
     // Optimized print options for sticker printing
     const electronPrintOptions = {
-      silent: printerName ? true : false, // Silent if printer specified
+      silent: true,
       printBackground: true,
       color: false, // Use black and white for better compatibility
       deviceName: printerName || '',
@@ -913,15 +941,21 @@ ipcMain.handle('print-sticker', async (event, options) => {
         right: 0
       },
       pageSize: {
-        width: 103000, // 103mm in microns (sticker width)
+        width: 105000, // 105mm in microns (same as web)
         height: 25000  // 25mm in microns (sticker height)
       },
       scaleFactor: 100,
-      headerFooter: false
+      headerFooter: false,
+      // Additional options for consistent rendering
+      landscape: false,
+      shouldPrintBackgrounds: true,
+      shouldPrintSelectionOnly: false
     };
     
     console.log('Print options:', electronPrintOptions);
     console.log(`🎯 Printing sticker to configured printer: ${printerName || 'Default printer'}`);
+    
+    console.log('🔧 About to create BrowserWindow for printing...');
     
     // Create a new window for printing
     const printWindow = new BrowserWindow({
@@ -932,24 +966,59 @@ ipcMain.handle('print-sticker', async (event, options) => {
       }
     });
     
-    // Load the HTML content directly (stickerPrinter.ts already provides complete HTML)
-    await printWindow.loadURL(`data:text/html;charset=utf-8,${encodeURIComponent(content)}`);
+    console.log('✅ BrowserWindow created successfully');
     
-    // Wait for content to fully load
+    // Load the HTML content directly (stickerPrinter.ts already provides complete HTML)
+    console.log('📄 Loading HTML content into print window...');
+    await printWindow.loadURL(`data:text/html;charset=utf-8,${encodeURIComponent(content)}`);
+    console.log('✅ HTML content loaded successfully');
+    
+    // Wait for content to fully load with timeout
+    console.log('⏳ Waiting for content to finish loading...');
     await new Promise(resolve => {
       if (printWindow.webContents.isLoading()) {
-        printWindow.webContents.once('did-finish-load', resolve);
+        console.log('📄 Content is still loading, waiting for did-finish-load event...');
+        
+        let resolved = false;
+        const timeout = setTimeout(() => {
+          if (!resolved) {
+            resolved = true;
+            console.log('⏰ Timeout reached, proceeding anyway...');
+            resolve(true);
+          }
+        }, 2000); // Reduced timeout to 2 seconds
+        
+        printWindow.webContents.once('did-finish-load', () => {
+          if (!resolved) {
+            resolved = true;
+            clearTimeout(timeout);
+            console.log('✅ did-finish-load event received');
+            resolve(true);
+          }
+        });
       } else {
+        console.log('✅ Content already loaded');
         resolve(true);
       }
     });
     
-    // Additional wait for any dynamic content (barcodes, etc.)
-    await new Promise(resolve => setTimeout(resolve, 2000));
+    console.log('✅ Content loading completed');
     
+    // Reduced wait for dynamic content (barcodes, etc.)
+    console.log('⏳ Waiting for dynamic content to load...');
+    await new Promise(resolve => setTimeout(resolve, 1000)); // Reduced from 3000ms to 1000ms
+    console.log('✅ Dynamic content wait completed');
+    
+    console.log('🚀 Starting print process...');
     return new Promise((resolve) => {
       printWindow.webContents.print(electronPrintOptions, (success, failureReason) => {
-        printWindow.close();
+        console.log('📊 Print callback - Success:', success, 'Reason:', failureReason);
+        
+        // Close window faster after printing
+        setTimeout(() => {
+          printWindow.close();
+        }, 200);
+        
         if (success) {
           const message = printerName ? 
             `พิมพ์สติ๊กเกอร์ไปยัง ${printerName} สำเร็จ` : 
@@ -959,13 +1028,17 @@ ipcMain.handle('print-sticker', async (event, options) => {
         } else {
           const errorMessage = `เกิดข้อผิดพลาดในการพิมพ์: ${failureReason || 'ไม่ทราบสาเหตุ'}`;
           console.error('❌ Sticker print failed:', errorMessage);
+          console.error('🔧 Troubleshooting: Check if printer is online and has correct drivers');
           resolve({ success: false, message: errorMessage });
         }
       });
     });
     
   } catch (error) {
-    console.error('Sticker print error:', error);
+    console.error('💥 Sticker print error:', error);
+    console.error('💥 Error stack:', error.stack);
+    console.error('💥 Error name:', error.name);
+    console.error('💥 Error message:', error.message);
     return { success: false, message: 'เกิดข้อผิดพลาดในการพิมพ์สติกเกอร์: ' + error.message };
   }
 });

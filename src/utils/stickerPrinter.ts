@@ -121,14 +121,63 @@ export function createStickerHTML(data: PatientStickerData): string {
   <script src="https://cdn.jsdelivr.net/npm/jsbarcode@3.11.5/dist/JsBarcode.all.min.js"></script>
   <style>
     @page {
-      size: 103mm 25mm;
+      size: 105mm 25mm;
       margin: 0mm;
     }
+    
+    /* Alternative page sizes for different browsers */
+    @page :first {
+      size: 105mm 25mm;
+      margin: 0mm;
+    }
+    
+    @page :left {
+      size: 105mm 25mm;
+      margin: 0mm;
+    }
+    
+    @page :right {
+      size: 105mm 25mm;
+      margin: 0mm;
+    }
+    
     @media print {
       * {
         -webkit-print-color-adjust: exact !important;
         color-adjust: exact !important;
         print-color-adjust: exact !important;
+        page-break-inside: avoid !important;
+        break-inside: avoid !important;
+      }
+      
+      html {
+        width: 105mm !important;
+        height: 25mm !important;
+        margin: 0 !important;
+        padding: 0 !important;
+      }
+      
+      body {
+        page-break-before: avoid !important;
+        page-break-after: avoid !important;
+        page-break-inside: avoid !important;
+        break-before: avoid !important;
+        break-after: avoid !important;
+        break-inside: avoid !important;
+      }
+      
+      .page-container {
+        page-break-inside: avoid !important;
+        break-inside: avoid !important;
+        page-break-before: avoid !important;
+        page-break-after: avoid !important;
+        break-before: avoid !important;
+        break-after: avoid !important;
+      }
+      
+      .sticker {
+        page-break-inside: avoid !important;
+        break-inside: avoid !important;
       }
     }
     body { 
@@ -137,23 +186,29 @@ export function createStickerHTML(data: PatientStickerData): string {
       padding: 0;
       font-size: 8px; 
       line-height: 0.8;
-      width: 100%;
-      height: 100%;
+      width: 105mm;
+      height: 25mm;
       box-sizing: border-box;
       -webkit-font-smoothing: antialiased;
       -moz-osx-font-smoothing: grayscale;
       text-rendering: optimizeLegibility;
       image-rendering: -webkit-optimize-contrast;
       image-rendering: crisp-edges;
+      overflow: hidden;
+      position: relative;
     }
     .page-container {
-      width: 103mm;
+      width: 105mm;
       height: 25mm;
       display: flex;
       padding: 0;
       margin: 0;
       align-items: center;
       box-sizing: border-box;
+      position: absolute;
+      top: 0;
+      left: 0;
+      overflow: hidden;
     }
     .sticker {
       width: 32mm;
@@ -168,14 +223,14 @@ export function createStickerHTML(data: PatientStickerData): string {
       position: relative;
     }
     .sticker:nth-child(1) {
-      margin-left: 2mm;
+      margin-left: 3mm;
+      margin-right: 1.5mm;
     }
     .sticker:nth-child(2) {
-      margin-left: 2mm;
+      margin-right: 1.5mm;
     }
     .sticker:nth-child(3) {
-      margin-left: 2mm;
-      margin-right: 0.2mm;
+      margin-right: 3mm;
     }
     .visit-number-vertical {
       position: absolute;
@@ -204,32 +259,32 @@ export function createStickerHTML(data: PatientStickerData): string {
       font-size: 10pt;
       font-weight: bold;
       text-align: left;
-      margin-bottom: 0.5mm;
+      margin-bottom: 0.1mm;
       color: #000000;
-      line-height: 0.9;
+      line-height: 0.6;
     }
     .patient-title-name {
-      font-size: 10pt;
+      font-size: 9pt;
       font-weight: bold;
       text-align: left;
-      line-height: 0.9;
-      margin-bottom: 0.5mm;
+      line-height: 0.6;
+      margin-bottom: 0.1mm;
       color: #000000;
     }
     .patient-lastname {
-      font-size: 10pt;
+      font-size: 9pt;
       font-weight: bold;
       text-align: left;
-      line-height: 0.9;
-      margin-bottom: 0.5mm;
+      line-height: 0.6;
+      margin-bottom: 0.1mm;
       color: #000000;
     }
     .visit-info {
       font-size: 8pt;
       font-weight: bold;
       text-align: left;
-      line-height: 0.9;
-      margin-bottom: 0.5mm;
+      line-height: 0.6;
+      margin-bottom: 0.1mm;
       width: 100%;
       color: #000000;
     }
@@ -246,7 +301,7 @@ export function createStickerHTML(data: PatientStickerData): string {
     }
     .barcode svg {
       height: 6mm;
-      width: 100%;
+      width: 95%;
       shape-rendering: crispEdges;
       image-rendering: -webkit-optimize-contrast;
       image-rendering: crisp-edges;
@@ -299,6 +354,49 @@ export function createStickerHTML(data: PatientStickerData): string {
   </div>
   
   <script>
+    // Force page size settings
+    function setupPrintSettings() {
+      // Set viewport for consistent rendering
+      const viewport = document.querySelector('meta[name="viewport"]');
+      if (!viewport) {
+        const meta = document.createElement('meta');
+        meta.name = 'viewport';
+        meta.content = 'width=105mm, height=25mm, initial-scale=1.0, user-scalable=no';
+        document.head.appendChild(meta);
+      }
+      
+      // Add print-specific styles
+      const printStyle = document.createElement('style');
+      printStyle.id = 'print-force-size';
+      printStyle.textContent = \`
+        @media print {
+          @page {
+            size: 105mm 25mm !important;
+            margin: 0mm !important;
+          }
+          
+          html, body {
+            width: 105mm !important;
+            height: 25mm !important;
+            margin: 0 !important;
+            padding: 0 !important;
+            overflow: hidden !important;
+          }
+          
+          .page-container {
+            width: 105mm !important;
+            height: 25mm !important;
+            transform: none !important;
+            zoom: 1 !important;
+          }
+        }
+      \`;
+      
+      if (!document.getElementById('print-force-size')) {
+        document.head.appendChild(printStyle);
+      }
+    }
+    
     function generateBarcodes() {
       try {
         if (typeof JsBarcode !== 'undefined') {
@@ -342,17 +440,23 @@ export function createStickerHTML(data: PatientStickerData): string {
       }
     }
     
-    // Try multiple ways to ensure the script runs
-    if (document.readyState === 'loading') {
-      document.addEventListener('DOMContentLoaded', generateBarcodes);
-    } else {
+    // Initialize everything
+    function initialize() {
+      setupPrintSettings();
       generateBarcodes();
     }
     
-    window.onload = generateBarcodes;
+    // Try multiple ways to ensure the script runs
+    if (document.readyState === 'loading') {
+      document.addEventListener('DOMContentLoaded', initialize);
+    } else {
+      initialize();
+    }
+    
+    window.onload = initialize;
     
     // Additional fallback
-    setTimeout(generateBarcodes, 500);
+    setTimeout(initialize, 500);
   </script>
 </body>
 </html>`;

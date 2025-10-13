@@ -1,0 +1,292 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>Debug Sticker - Test</title>
+  <link href="https://fonts.googleapis.com/css2?family=Itim&display=swap" rel="stylesheet">
+  <script src="https://cdn.jsdelivr.net/npm/jsbarcode@3.11.5/dist/JsBarcode.all.min.js"></script>
+  <style>
+    @page {
+      size: 103mm 25mm;
+      margin: 0mm;
+    }
+    @media print {
+      * {
+        -webkit-print-color-adjust: exact !important;
+        print-color-adjust: exact !important;
+      }
+    }
+    body { 
+      font-family: 'TH Sarabun New', 'THSarabunNew', 'Itim', 'Arial', sans-serif; 
+      margin: 0;
+      padding: 0;
+      font-size: 8px; 
+      line-height: 0.8;
+      width: 100%;
+      height: 100%;
+      box-sizing: border-box;
+      background: white;
+    }
+    .page-container {
+      width: 103mm;
+      height: 25mm;
+      display: flex;
+      padding: 0;
+      margin: 0;
+      align-items: center;
+      box-sizing: border-box;
+      background: white;
+    }
+    .sticker {
+      width: 32mm;
+      height: 25mm;
+      padding: 1mm;
+      box-sizing: border-box;
+      display: flex;
+      text-align: left;
+      font-size: 6px;
+      line-height: 1.1;
+      background: white;
+      position: relative;
+      border: 1px solid #ddd; /* Debug border */
+    }
+    .sticker:nth-child(1) {
+      margin-left: 2mm;
+    }
+    .sticker:nth-child(2) {
+      margin-left: 2mm;
+    }
+    .sticker:nth-child(3) {
+      margin-left: 2mm;
+      margin-right: 0.2mm;
+    }
+    .visit-number-vertical {
+      position: absolute;
+      left: 0.5mm;
+      top: 1mm;
+      bottom: 1mm;
+      width: 3mm;
+      writing-mode: vertical-rl;
+      text-orientation: mixed;
+      font-size: 7pt;
+      font-weight: bold;
+      color: black;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: #f0f0f0; /* Debug background */
+    }
+    .content-area {
+      flex: 1;
+      margin-left: 4mm;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      padding: 0.5mm 0;
+    }
+    .ln-number {
+      font-size: 10pt;
+      font-weight: bold;
+      text-align: left;
+      margin-bottom: 0.5mm;
+      color: #000000;
+      line-height: 0.9;
+    }
+    .patient-title-name {
+      font-size: 10pt;
+      font-weight: bold;
+      text-align: left;
+      line-height: 0.9;
+      margin-bottom: 0.5mm;
+      color: #000000;
+    }
+    .patient-lastname {
+      font-size: 10pt;
+      font-weight: bold;
+      text-align: left;
+      line-height: 0.9;
+      margin-bottom: 0.5mm;
+      color: #000000;
+    }
+    .visit-info {
+      font-size: 8pt;
+      font-weight: bold;
+      text-align: left;
+      line-height: 0.9;
+      margin-bottom: 0.5mm;
+      width: 100%;
+      color: #000000;
+    }
+    .barcode {
+      height: 16mm;
+      width: 95%;
+      margin: 0.5mm auto 0 auto;
+      background: white;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      image-rendering: -webkit-optimize-contrast;
+      image-rendering: crisp-edges;
+      flex-grow: 1;
+    }
+    .barcode svg {
+      height: 16mm;
+      width: 100%;
+      shape-rendering: crispEdges;
+      image-rendering: -webkit-optimize-contrast;
+      image-rendering: crisp-edges;
+    }
+    .debug-info {
+      position: fixed;
+      top: 10px;
+      right: 10px;
+      background: yellow;
+      padding: 10px;
+      font-size: 12px;
+      border: 2px solid red;
+      z-index: 1000;
+    }
+  </style>
+</head>
+<body>
+  <div class="debug-info" id="debugInfo">
+    Loading...
+  </div>
+  
+  <div class="page-container">
+    <!-- Sticker 1 -->
+    <div class="sticker">
+      <div class="visit-number-vertical">V123456</div>
+      <div class="content-area">
+        <div class="ln-number">LN: 67001</div>
+        <div class="patient-title-name">นายทดสอบ</div>
+        <div class="patient-lastname">ระบบ</div>
+        <div class="visit-info">อายุ 35 ปี 10:19</div>
+        <div class="barcode">
+          <svg id="barcode1"></svg>
+        </div>
+      </div>
+    </div>
+    
+    <!-- Sticker 2 -->
+    <div class="sticker">
+      <div class="visit-number-vertical">V123456</div>
+      <div class="content-area">
+        <div class="ln-number">LN: 67001</div>
+        <div class="patient-title-name">นายทดสอบ</div>
+        <div class="patient-lastname">ระบบ</div>
+        <div class="visit-info">อายุ 35 ปี 10:19</div>
+        <div class="barcode">
+          <svg id="barcode2"></svg>
+        </div>
+      </div>
+    </div>
+    
+    <!-- Sticker 3 -->
+    <div class="sticker">
+      <div class="visit-number-vertical">V123456</div>
+      <div class="content-area">
+        <div class="ln-number">LN: 67001</div>
+        <div class="patient-title-name">นายทดสอบ</div>
+        <div class="patient-lastname">ระบบ</div>
+        <div class="visit-info">อายุ 35 ปี 10:19</div>
+        <div class="barcode">
+          <svg id="barcode3"></svg>
+        </div>
+      </div>
+    </div>
+  </div>
+  
+  <script>
+    let debugInfo = [];
+    
+    function updateDebug(message) {
+      debugInfo.push(new Date().toLocaleTimeString() + ': ' + message);
+      document.getElementById('debugInfo').innerHTML = debugInfo.join('<br>');
+      console.log('🔧 Debug:', message);
+    }
+    
+    function generateBarcodes() {
+      try {
+        updateDebug('Starting barcode generation...');
+        
+        if (typeof JsBarcode !== 'undefined') {
+          updateDebug('JsBarcode is available');
+          
+          // Generate barcodes for all three stickers
+          JsBarcode("#barcode1", "V123456", {
+            format: "CODE128",
+            width: 2.8,
+            height: 100,
+            displayValue: false,
+            margin: 0,
+            background: "#ffffff",
+            lineColor: "#000000"
+          });
+          updateDebug('Barcode 1 generated');
+          
+          JsBarcode("#barcode2", "V123456", {
+            format: "CODE128",
+            width: 2.8,
+            height: 100,
+            displayValue: false,
+            margin: 0,
+            background: "#ffffff",
+            lineColor: "#000000"
+          });
+          updateDebug('Barcode 2 generated');
+          
+          JsBarcode("#barcode3", "V123456", {
+            format: "CODE128",
+            width: 2.8,
+            height: 100,
+            displayValue: false,
+            margin: 0,
+            background: "#ffffff",
+            lineColor: "#000000"
+          });
+          updateDebug('Barcode 3 generated - ALL DONE!');
+        } else {
+          updateDebug('JsBarcode not loaded, retrying in 100ms...');
+          setTimeout(generateBarcodes, 100);
+        }
+      } catch (error) {
+        updateDebug('Error generating barcode: ' + error.message);
+        console.error('Error generating barcode:', error);
+      }
+    }
+    
+    updateDebug('Script loaded, document state: ' + document.readyState);
+    
+    // Try multiple ways to ensure the script runs
+    if (document.readyState === 'loading') {
+      updateDebug('Document still loading, adding DOMContentLoaded listener');
+      document.addEventListener('DOMContentLoaded', generateBarcodes);
+    } else {
+      updateDebug('Document ready, generating barcodes immediately');
+      generateBarcodes();
+    }
+    
+    window.onload = function() {
+      updateDebug('Window onload triggered');
+      generateBarcodes();
+    };
+    
+    // Multiple fallbacks with different delays
+    setTimeout(() => {
+      updateDebug('500ms timeout - generating barcodes');
+      generateBarcodes();
+    }, 500);
+    
+    setTimeout(() => {
+      updateDebug('1000ms timeout - generating barcodes');
+      generateBarcodes();
+    }, 1000);
+    
+    setTimeout(() => {
+      updateDebug('2000ms timeout - generating barcodes');
+      generateBarcodes();
+    }, 2000);
+  </script>
+</body>
+</html>
