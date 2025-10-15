@@ -108,6 +108,12 @@ export default function PatientRegistration() {
   const [showRegistrationHistory, setShowRegistrationHistory] = useState(true);
   const [showVisitHistory, setShowVisitHistory] = useState(true);
   
+  // Visit search state
+  const [visitSearchTerm, setVisitSearchTerm] = useState("");
+  const [isSearchingVisits, setIsSearchingVisits] = useState(false);
+  const [searchedVisits, setSearchedVisits] = useState<VisitData[]>([]);
+  const [showSearchResults, setShowSearchResults] = useState(false);
+  
   const [formData, setFormData] = useState<PatientData>({
     _id: "",
     ln: "",
@@ -127,11 +133,24 @@ export default function PatientRegistration() {
 
   // Load registration history on component mount
   useEffect(() => {
-    
     loadRegistrationHistory();
     loadVisitHistory();
     loadDoctors();
   }, []);
+
+  // Debounced search effect สำหรับค้นหา Visit
+  useEffect(() => {
+    const timeoutId = setTimeout(() => {
+      if (visitSearchTerm.trim()) {
+        searchVisitsFromDatabase(visitSearchTerm);
+      } else {
+        setSearchedVisits([]);
+        setShowSearchResults(false);
+      }
+    }, 500); // รอ 500ms หลังจากหยุดพิมพ์
+
+    return () => clearTimeout(timeoutId);
+  }, [visitSearchTerm]);
 
   // Calculate age when birthdate changes (only if not using manual age)
   useEffect(() => {
@@ -196,19 +215,73 @@ export default function PatientRegistration() {
   const loadVisitHistory = async () => {
     try {
       const visits = await apiService.getVisits();
-      // Sort by creation date (newest first)
-      const sortedVisits = visits.sort((a, b) => {
-        const dateA = new Date(a.createdAt || 0);
-        const dateB = new Date(b.createdAt || 0);
-        return dateB.getTime() - dateA.getTime();
-      });
-      setVisitHistory(sortedVisits.slice(0, 10)); // Show only last 10
+      console.log('Loaded visit history:', visits);
+      setVisitHistory(visits);
     } catch (error) {
       console.error('Error loading visit history:', error);
       showErrorToast({
         title: "เกิดข้อผิดพลาด",
         description: "ไม่สามารถโหลดประวัติ Visit ได้",
       });
+    }
+  };
+
+  // ฟังก์ชันค้นหา Visit จากฐานข้อมูล
+  const searchVisitsFromDatabase = async (searchTerm: string) => {
+    if (!searchTerm.trim()) {
+      setSearchedVisits([]);
+      setShowSearchResults(false);
+      return;
+    }
+
+    setIsSearchingVisits(true);
+    try {
+      console.log('🔍 Searching visits from database:', searchTerm);
+      
+      // เรียก API เพื่อค้นหา Visit จากฐานข้อมูล (โหลดทั้งหมดแล้วกรอง)
+      const allVisits = await apiService.getVisits();
+      
+      // กรองผลการค้นหาจากข้อมูลทั้งหมด
+      const searchResults = allVisits.filter(visit => {
+        const searchLower = searchTerm.toLowerCase();
+        return (
+          visit.visitNumber?.toLowerCase().includes(searchLower) ||
+          visit.patientName?.toLowerCase().includes(searchLower) ||
+          visit.department?.toLowerCase().includes(searchLower) ||
+          visit.chiefComplaint?.toLowerCase().includes(searchLower) ||
+          visit.patientData?.firstName?.toLowerCase().includes(searchLower) ||
+          visit.patientData?.lastName?.toLowerCase().includes(searchLower) ||
+          visit.patientData?.idCard?.includes(searchTerm) ||
+          visit.patientData?.ln?.toLowerCase().includes(searchLower)
+        );
+      }).slice(0, 50); // จำกัดผลการค้นหาไม่เกิน 50 รายการ
+      
+      console.log('📋 Visit search results:', {
+        searchTerm,
+        count: searchResults.length,
+        results: searchResults
+      });
+      
+      setSearchedVisits(searchResults);
+      setShowSearchResults(true);
+      
+      if (searchResults.length === 0) {
+        showInfoToast({
+          title: "ไม่พบผลการค้นหา",
+          description: `ไม่พบ Visit ที่ตรงกับ "${searchTerm}"`
+        });
+      }
+      
+    } catch (error) {
+      console.error('Error searching visits:', error);
+      showErrorToast({
+        title: "เกิดข้อผิดพลาดในการค้นหา",
+        description: "ไม่สามารถค้นหาประวัติ Visit ได้"
+      });
+      setSearchedVisits([]);
+      setShowSearchResults(false);
+    } finally {
+      setIsSearchingVisits(false);
     }
   };
 
@@ -1670,15 +1743,6 @@ export default function PatientRegistration() {
               </div>
               <div className="flex items-center gap-2">
                 <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={handleTestSticker}
-                  className="h-6 px-2 text-xs bg-yellow-50 border-yellow-200 text-yellow-800 hover:bg-yellow-100"
-                  title="ทดสอบการพิมพ์สติ๊กเกอร์"
-                >
-                  🧪 ทดสอบ
-                </Button>
-                <Button
                   variant="ghost"
                   size="sm"
                   onClick={() => setShowVisitHistory(!showVisitHistory)}
@@ -1695,18 +1759,54 @@ export default function PatientRegistration() {
             </div>
           </CardHeader>
           <div className={`transition-all duration-300 ease-in-out overflow-hidden ${
-            showVisitHistory ? 'max-h-[400px] opacity-100' : 'max-h-0 opacity-0'
+            showVisitHistory ? 'max-h-[500px] opacity-100' : 'max-h-0 opacity-0'
           }`}>
-            <CardContent className="p-3 space-y-2 max-h-[300px] overflow-y-auto">
-              {visitHistory.length === 0 ? (
-              <div className="text-center text-muted-foreground py-4">
-                <div className="p-2 rounded-full bg-muted/30 w-fit mx-auto mb-2">
-                  <FileText className="h-6 w-6 opacity-50" />
+            <CardContent className="p-3 space-y-3">
+              {/* Visit Search */}
+              {showVisitHistory && (
+                <div className="relative">
+                  <Search className="absolute left-2.5 top-1/2 transform -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
+                  <Input 
+                    placeholder="ค้นหา Visit (หมายเลข Visit, ชื่อผู้ป่วย, แผนก...)"
+                    className="pl-8 h-8 text-sm"
+                    value={visitSearchTerm}
+                    onChange={(e) => setVisitSearchTerm(e.target.value)}
+                  />
                 </div>
-                <p className="text-xs">ยังไม่มีประวัติ Visit</p>
-              </div>
-            ) : (
-              visitHistory.map((visit) => (
+              )}
+              
+              <div className="space-y-2 max-h-[350px] overflow-y-auto">
+              {/* แสดงสถานะการค้นหา */}
+              {visitSearchTerm.trim() && (
+                <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-700 rounded-lg p-2 mb-2">
+                  <div className="flex items-center gap-2">
+                    {isSearchingVisits ? (
+                      <div className="animate-spin rounded-full h-3 w-3 border-2 border-blue-600 border-t-transparent"></div>
+                    ) : (
+                      <Search className="h-3 w-3 text-blue-600 dark:text-blue-400" />
+                    )}
+                    <span className="text-xs text-blue-700 dark:text-blue-300 font-medium">
+                      {isSearchingVisits ? 
+                        `กำลังค้นหา \"${visitSearchTerm}\" จากฐานข้อมูล...` : 
+                        `ผลการค้นหา \"${visitSearchTerm}\": ${showSearchResults ? searchedVisits.length : 0} รายการ`
+                      }
+                    </span>
+                  </div>
+                </div>
+              )}
+
+              {/* แสดงผลการค้นหาหรือประวัติปกติ */}
+              {visitSearchTerm.trim() && showSearchResults ? (
+                // แสดงผลการค้นหาจากฐานข้อมูล
+                searchedVisits.length === 0 ? (
+                  <div className="text-center text-muted-foreground py-4">
+                    <div className="p-2 rounded-full bg-muted/30 w-fit mx-auto mb-2">
+                      <Search className="h-6 w-6 opacity-50" />
+                    </div>
+                    <p className="text-xs">ไม่พบ Visit ที่ตรงกับการค้นหา</p>
+                  </div>
+                ) : (
+                  searchedVisits.map((visit) => (
                 <Card key={visit._id} className="shadow-sm border border-border hover:border-primary/20 transition-all duration-200">
                   <CardContent className="p-2">
                     <div className="space-y-1">
@@ -1720,7 +1820,15 @@ export default function PatientRegistration() {
                               <span className="font-medium">Visit:</span> {visit.visitNumber}
                             </div>
                             <div className="flex items-center gap-1">
-                              <span className="font-medium">วันที่:</span> {visit.visitDate}
+                              <span className="font-medium">วันที่:</span> {
+                                visit.visitDate ? 
+                                  new Date(visit.visitDate).toLocaleDateString('th-TH', {
+                                    day: '2-digit',
+                                    month: '2-digit', 
+                                    year: 'numeric'
+                                  }) : 
+                                  'ไม่ระบุ'
+                              }
                             </div>
                             <div className="flex items-center gap-1">
                               <span className="font-medium">แผนก:</span> {visit.department}
@@ -1787,7 +1895,109 @@ export default function PatientRegistration() {
                   </CardContent>
                 </Card>
               ))
-            )}
+                )
+              ) : (
+                // แสดงประวัติ Visit ปกติ (ไม่มีการค้นหา)
+                visitHistory.length === 0 ? (
+                  <div className="text-center text-muted-foreground py-4">
+                    <div className="p-2 rounded-full bg-muted/30 w-fit mx-auto mb-2">
+                      <FileText className="h-6 w-6 opacity-50" />
+                    </div>
+                    <p className="text-xs">ยังไม่มีประวัติ Visit</p>
+                  </div>
+                ) : (
+                  visitHistory.map((visit) => (
+                <Card key={visit._id} className="shadow-sm border border-border hover:border-primary/20 transition-all duration-200">
+                  <CardContent className="p-2">
+                    <div className="space-y-1">
+                      <div className="flex items-start justify-between">
+                        <div className="flex-1">
+                          <div className="font-medium text-foreground text-xs mb-1">
+                            {visit.patientName}
+                          </div>
+                          <div className="text-xs text-muted-foreground space-y-0.5">
+                            <div className="flex items-center gap-1">
+                              <span className="font-medium">Visit:</span> {visit.visitNumber}
+                            </div>
+                            <div className="flex items-center gap-1">
+                              <span className="font-medium">วันที่:</span> {
+                                visit.visitDate ? 
+                                  new Date(visit.visitDate).toLocaleDateString('th-TH', {
+                                    day: '2-digit',
+                                    month: '2-digit', 
+                                    year: 'numeric'
+                                  }) : 
+                                  'ไม่ระบุ'
+                              }
+                            </div>
+                            <div className="flex items-center gap-1">
+                              <span className="font-medium">แผนก:</span> {visit.department}
+                            </div>
+                            <div className="flex items-center gap-1">
+                              <span className="font-medium">สถานะ:</span> 
+                              <Badge 
+                                variant={visit.status === 'completed' ? 'default' : visit.status === 'in-progress' ? 'secondary' : 'outline'}
+                                className="text-xs h-4"
+                              >
+                                {visit.status === 'completed' ? 'เสร็จสิ้น' : 
+                                 visit.status === 'in-progress' ? 'กำลังดำเนินการ' : 'รอดำเนินการ'}
+                              </Badge>
+                            </div>
+                          </div>
+                        </div>
+                        <div className="flex flex-col gap-1 ml-2">
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            onClick={() => handlePrintVisit(visit)}
+                            className="h-6 w-6 p-0 text-blue-600 hover:bg-blue-50"
+                            title="พิมพ์"
+                          >
+                            <Printer className="h-3 w-3" />
+                          </Button>
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            onClick={() => handlePrintSticker(visit)}
+                            className="h-6 w-6 p-0 text-green-600 hover:bg-green-50"
+                            title="พิมพ์สติ๊กเกอร์บาร์โค้ด"
+                          >
+                            <ScanLine className="h-3 w-3" />
+                          </Button>
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            onClick={() => handleEditVisit(visit)}
+                            className="h-6 w-6 p-0 text-primary hover:bg-primary/10"
+                            title="แก้ไข"
+                          >
+                            <Edit className="h-3 w-3" />
+                          </Button>
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            onClick={() => handleDeleteVisit(visit._id!)}
+                            className="h-6 w-6 p-0 text-destructive hover:bg-destructive/10"
+                            title="ลบ"
+                          >
+                            <Trash2 className="h-3 w-3" />
+                          </Button>
+                        </div>
+                      </div>
+                      {visit.chiefComplaint && (
+                        <div className="text-xs text-muted-foreground bg-muted/20 p-1 rounded border mt-1">
+                          <div className="truncate">
+                            <span className="font-medium">อาการ:</span> {visit.chiefComplaint}
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  </CardContent>
+                </Card>
+              ))
+                )
+              )}
+              </div>
             </CardContent>
           </div>
         </Card>
@@ -2542,10 +2752,10 @@ export default function PatientRegistration() {
                   </Select>
                 </div>
               </CardContent>
-            </Card>
-          </div>
+          </Card>
+        </div>
 
-          <DialogFooter className="gap-2">
+        <DialogFooter className="gap-2">
             <Button
               variant="outline"
               onClick={handleSkipVisit}

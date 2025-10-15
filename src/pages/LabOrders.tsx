@@ -1408,6 +1408,62 @@ export default function LabOrders() {
     }
   };
 
+  // ฟังก์ชันกำหนดสีสำหรับประเภทรายการตรวจ
+  const getTestCategoryColor = (category: string) => {
+    const categoryLower = category.toLowerCase();
+    
+    if (categoryLower.includes('outlab')) {
+      return {
+        border: 'border-orange-300 dark:border-orange-600',
+        bg: 'bg-orange-50 dark:bg-orange-900/10',
+        selectedBg: 'bg-orange-100 dark:bg-orange-900/30',
+        selectedBorder: 'border-orange-500 dark:border-orange-400',
+        hoverBg: 'hover:bg-orange-100 dark:hover:bg-orange-900/20',
+        hoverBorder: 'hover:border-orange-300 dark:hover:border-orange-500',
+        text: 'text-orange-600 dark:text-orange-400',
+        label: 'text-orange-700 dark:text-orange-300',
+        ring: 'ring-orange-200 dark:ring-orange-700'
+      };
+    } else if (categoryLower.includes('clinical')) {
+      return {
+        border: 'border-blue-300 dark:border-blue-600',
+        bg: 'bg-blue-50 dark:bg-blue-900/10',
+        selectedBg: 'bg-blue-100 dark:bg-blue-900/30',
+        selectedBorder: 'border-blue-500 dark:border-blue-400',
+        hoverBg: 'hover:bg-blue-100 dark:hover:bg-blue-900/20',
+        hoverBorder: 'hover:border-blue-300 dark:hover:border-blue-500',
+        text: 'text-blue-600 dark:text-blue-400',
+        label: 'text-blue-700 dark:text-blue-300',
+        ring: 'ring-blue-200 dark:ring-blue-700'
+      };
+    } else if (categoryLower.includes('nhso')) {
+      return {
+        border: 'border-green-300 dark:border-green-600',
+        bg: 'bg-green-50 dark:bg-green-900/10',
+        selectedBg: 'bg-green-100 dark:bg-green-900/30',
+        selectedBorder: 'border-green-500 dark:border-green-400',
+        hoverBg: 'hover:bg-green-100 dark:hover:bg-green-900/20',
+        hoverBorder: 'hover:border-green-300 dark:hover:border-green-500',
+        text: 'text-green-600 dark:text-green-400',
+        label: 'text-green-700 dark:text-green-300',
+        ring: 'ring-green-200 dark:ring-green-700'
+      };
+    } else {
+      // สีเริ่มต้นสำหรับประเภทอื่นๆ
+      return {
+        border: 'border-gray-300 dark:border-gray-600',
+        bg: 'bg-gray-50 dark:bg-gray-900/10',
+        selectedBg: 'bg-gray-100 dark:bg-gray-900/30',
+        selectedBorder: 'border-gray-500 dark:border-gray-400',
+        hoverBg: 'hover:bg-gray-100 dark:hover:bg-gray-900/20',
+        hoverBorder: 'hover:border-gray-300 dark:hover:border-gray-500',
+        text: 'text-gray-600 dark:text-gray-400',
+        label: 'text-gray-700 dark:text-gray-300',
+        ring: 'ring-gray-200 dark:ring-gray-700'
+      };
+    }
+  };
+
   const getPaymentIcon = (method: string) => {
     switch (method) {
       case "cash":
@@ -1797,21 +1853,30 @@ export default function LabOrders() {
                       acc[test.category].push(test);
                       return acc;
                     }, {} as Record<string, LabTestData[]>)
-                  ).map(([category, tests]) => (
+                  ).map(([category, tests]) => {
+                    const categoryColors = getTestCategoryColor(category);
+                    return (
                     <div key={category}>
-                      <Label className="text-sm font-semibold text-primary mb-2 block">{category}</Label>
+                      <Label className={`text-sm font-semibold mb-2 block flex items-center gap-2 ${categoryColors.label}`}>
+                        <div className={`w-3 h-3 rounded-full ${categoryColors.selectedBg} ${categoryColors.selectedBorder} border`}></div>
+                        {category}
+                        <span className={`text-xs px-2 py-0.5 rounded-full ${categoryColors.selectedBg} ${categoryColors.text}`}>
+                          {tests.length} รายการ
+                        </span>
+                      </Label>
                       <div className="space-y-1.5">
                         {tests.map((test) => {
                           const isPurchased = purchasedTestIds.includes(test._id!);
+                          const isSelected = selectedTests.includes(test._id!);
                           return (
                           <div
                             key={test._id}
                             className={`p-2 border rounded-md transition-all ${
                               isPurchased 
-                                ? 'border-gray-300 bg-gray-100 opacity-60 cursor-not-allowed'
-                                : selectedTests.includes(test._id!)
-                                  ? 'border-blue-500 bg-blue-50 shadow-sm ring-1 ring-blue-200 cursor-pointer'
-                                  : 'border-border bg-background hover:bg-muted/30 hover:border-blue-300 cursor-pointer'
+                                ? 'border-gray-300 dark:border-gray-600 bg-gray-100 dark:bg-gray-800 opacity-60 cursor-not-allowed'
+                                : isSelected
+                                  ? `${categoryColors.selectedBorder} ${categoryColors.selectedBg} shadow-sm ring-1 ${categoryColors.ring} cursor-pointer`
+                                  : `${categoryColors.border} ${categoryColors.bg} ${categoryColors.hoverBg} ${categoryColors.hoverBorder} cursor-pointer`
                             }`}
                             onClick={() => !isPurchased && handleTestSelection(test._id!, !selectedTests.includes(test._id!))}
                           >
@@ -1835,12 +1900,14 @@ export default function LabOrders() {
                                 </div>
                               </div>
                               <div className="text-right">
-                                <span className="font-semibold text-primary text-sm">฿{test.price.toLocaleString()}</span>
+                                <span className={`font-semibold text-sm ${isSelected ? categoryColors.text : 'text-primary'}`}>
+                                  ฿{test.price.toLocaleString()}
+                                </span>
                               </div>
                             </div>
                             {isPurchased && (
                               <div className="mt-1">
-                                <Badge variant="secondary" className="text-xs bg-gray-200 text-gray-600">
+                                <Badge variant="secondary" className="text-xs bg-gray-200 dark:bg-gray-700 text-gray-600 dark:text-gray-300">
                                   เคยซื้อแล้ว
                                 </Badge>
                               </div>
@@ -1850,7 +1917,8 @@ export default function LabOrders() {
                         })}
                       </div>
                     </div>
-                  ))}
+                    );
+                  })}
                 </div>
               </div>
             </CardContent>

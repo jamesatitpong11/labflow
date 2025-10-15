@@ -10,7 +10,8 @@ import {
   Settings,
   LogOut,
   Microscope,
-  Printer
+  Printer,
+  Info
 } from "lucide-react"
 import { NavLink, useLocation, useNavigate } from "react-router-dom"
 import { useAuth } from "@/contexts/AuthContext"
@@ -98,6 +99,20 @@ export function MedicalSidebar() {
       </SidebarContent>
 
       <SidebarFooter className="border-t border-border/20 p-4 bg-gradient-card/20">
+        {/* Version Display */}
+        <div className="group-data-[collapsible=icon]:hidden mb-3">
+          <div className="bg-muted/30 rounded-lg p-3 border border-border/30">
+            <div className="flex items-center justify-center gap-2 mb-1">
+              <Info className="h-3 w-3 text-primary" />
+              <p className="text-xs text-foreground font-semibold">LabFlow Clinic</p>
+            </div>
+            <div className="text-center">
+              <p className="text-xs text-muted-foreground">เวอร์ชัน 1.0.0</p>
+              <p className="text-xs text-muted-foreground opacity-75">Build: {new Date().toLocaleDateString('th-TH')}</p>
+            </div>
+          </div>
+        </div>
+        
         <div className="flex items-center gap-3">
           <ThemeToggle />
           <div className="group-data-[collapsible=icon]:hidden flex-1">
