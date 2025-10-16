@@ -72,6 +72,7 @@ export default function LabOrders() {
   const [isSearching, setIsSearching] = useState(false);
   const [existingOrders, setExistingOrders] = useState<any[]>([]);
   const [purchasedTestIds, setPurchasedTestIds] = useState<string[]>([]);
+  const [isCancelling, setIsCancelling] = useState(false);
   const { toast } = useToast();
 
   // Display data: use search results when searching, otherwise use sales history
@@ -384,16 +385,21 @@ export default function LabOrders() {
         limit: 1000 // Get more orders to ensure we find all for this visit
       });
 
-      // Filter orders that match this visitId exactly
+      // Filter orders that match this visitId exactly and are not cancelled
       const visitOrders = orders.filter(order => {
         // Check multiple possible ID formats
         const orderVisitId = order.visitId;
         const orderVisitNumber = order.visitData?.visitNumber;
         const currentVisitNumber = patientInfo?.visitNumber;
         
-        return orderVisitId === visitId || 
-               orderVisitId === visitId.toString() ||
-               (orderVisitNumber && currentVisitNumber && orderVisitNumber === currentVisitNumber);
+        const matchesVisit = orderVisitId === visitId || 
+                            orderVisitId === visitId.toString() ||
+                            (orderVisitNumber && currentVisitNumber && orderVisitNumber === currentVisitNumber);
+        
+        // Only include orders that are not cancelled
+        const isNotCancelled = order.status !== 'cancelled';
+        
+        return matchesVisit && isNotCancelled;
       });
 
       console.log('📋 Found existing orders for visit:', {
@@ -641,10 +647,24 @@ export default function LabOrders() {
 
   const cancelReceiptFromHistory = async (sale: any) => {
     try {
+      // Prevent multiple clicks
+      if (isCancelling) {
+        console.log('Cancel already in progress, ignoring...');
+        return;
+      }
+      
       // Show confirmation dialog
       const confirmed = window.confirm(`ต้องการยกเลิกใบเสร็จ Visit: ${sale.visitNumber} หรือไม่?`);
       
       if (!confirmed) return;
+
+      setIsCancelling(true);
+      
+      // Show loading toast
+      showInfoToast({
+        title: "กำลังยกเลิกใบเสร็จ",
+        description: "กรุณารอสักครู่...",
+      });
 
       // Debug: Log sale object to check ID format
       console.log('Sale object for cancellation:', sale);
@@ -659,22 +679,35 @@ export default function LabOrders() {
       }
 
       // Update order status to cancelled
+      console.log('🔄 Updating order status to cancelled...');
       await apiService.updateOrderStatus(orderId, 'cancelled');
+      console.log('✅ Order status updated successfully');
       
       // Reload sales history to reflect changes
+      console.log('🔄 Reloading sales history...');
       await loadSalesHistory();
+      console.log('✅ Sales history reloaded');
       
-      toast({
+      // Reload existing orders for current visit to update purchasedTestIds
+      if (patientInfo && patientInfo._id) {
+        console.log('🔄 Reloading existing orders for current visit...');
+        await loadExistingOrdersForVisit(patientInfo._id);
+        console.log('✅ Existing orders reloaded');
+      }
+      
+      showSuccessToast({
         title: "ยกเลิกใบเสร็จสำเร็จ",
-        description: `ยกเลิกใบเสร็จ Visit: ${sale.visitNumber} เรียบร้อยแล้ว`,
+        description: `ยกเลิกใบเสร็จ Visit: ${sale.visitNumber} เรียบร้อยแล้ว - สามารถเลือกรายการใหม่ได้แล้ว`,
       });
+      
     } catch (error) {
       console.error('Cancel receipt error:', error);
-      toast({
+      showErrorToast({
         title: "การยกเลิกใบเสร็จล้มเหลว",
-        description: "เกิดข้อผิดพลาดในการยกเลิกใบเสร็จ",
-        variant: "destructive",
+        description: error instanceof Error ? error.message : "เกิดข้อผิดพลาดในการยกเลิกใบเสร็จ",
       });
+    } finally {
+      setIsCancelling(false);
     }
   };
 

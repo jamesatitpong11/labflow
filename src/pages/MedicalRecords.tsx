@@ -35,8 +35,10 @@ interface MedicalRecord {
   id: string;
   patientName: string;
   patientId: string;
-  idCardNumber: string;
-  phone: string;
+  idCardNumber?: string;
+  idCard?: string; // Alternative field name
+  phone?: string;
+  phoneNumber?: string; // Alternative field name
   address: string;
   lastVisit: string;
   totalVisits: number;
@@ -100,8 +102,45 @@ export default function MedicalRecords() {
     setHasSearched(true);
     
     try {
+      // Debug: Log search query
+      console.log('🔍 Searching for:', searchQuery);
+      
       // Use optimized API endpoint that does server-side filtering and joining
-      const medicalRecords = await apiService.searchMedicalRecords(searchQuery);
+      const rawData = await apiService.searchMedicalRecords(searchQuery);
+      
+      // Debug: Log the structure of returned data
+      console.log('🔍 Medical Records API Response:', rawData);
+      console.log('📊 Response length:', rawData.length);
+      
+      if (rawData.length > 0) {
+        console.log('📋 First record structure:', rawData[0]);
+        console.log('🔑 Available fields:', Object.keys(rawData[0]));
+      } else {
+        console.log('❌ No records found for query:', searchQuery);
+        console.log('💡 Try searching with:');
+        console.log('   - Patient name (ชื่อคนไข้)');
+        console.log('   - Visit number (หมายเลข visit)');
+        console.log('   - Phone number (เบอร์โทร)');
+      }
+      
+      // Transform data according to backend structure
+      const medicalRecords = rawData.map((record: any) => ({
+        id: record.id || record._id?.toString() || '',
+        patientName: record.patientName || 'ไม่ระบุชื่อ',
+        patientId: record.patientId || '',
+        idCardNumber: record.idCardNumber && record.idCardNumber !== 'ไม่ระบุ' ? record.idCardNumber : null,
+        idCard: record.idCardNumber && record.idCardNumber !== 'ไม่ระบุ' ? record.idCardNumber : null,
+        phone: record.phone && record.phone !== 'ไม่ระบุ' ? record.phone : null,
+        phoneNumber: record.phone && record.phone !== 'ไม่ระบุ' ? record.phone : null,
+        address: record.address || 'ไม่ระบุที่อยู่',
+        lastVisit: record.lastVisit || 'ไม่ระบุ',
+        totalVisits: record.totalVisits || 0,
+        recentTests: record.recentTests || [],
+        status: record.status || 'active',
+        visits: record.visits || []
+      }));
+      
+      console.log('✅ Transformed medical records:', medicalRecords);
       setSearchResults(medicalRecords);
       
     } catch (error) {
@@ -360,11 +399,11 @@ export default function MedicalRecords() {
                             </span>
                             <span className="flex items-center gap-1">
                               <CreditCard className="h-3 w-3 text-muted-foreground" />
-                              <span className="text-muted-foreground">{record.idCardNumber}</span>
+                              <span className="text-muted-foreground">{record.idCardNumber || record.idCard || 'ไม่ระบุ'}</span>
                             </span>
                             <span className="flex items-center gap-1">
                               <Phone className="h-3 w-3 text-muted-foreground" />
-                              <span className="text-muted-foreground">{record.phone}</span>
+                              <span className="text-muted-foreground">{record.phone || record.phoneNumber || 'ไม่ระบุ'}</span>
                             </span>
                           </div>
                         </div>

@@ -38,7 +38,7 @@ export function MainLayout({ children }: MainLayoutProps) {
           <header className="h-16 border-b border-border/20 bg-gradient-card/30 backdrop-blur-sm flex items-center justify-between px-6 shadow-sm">
             <div className="flex items-center gap-4">
               <SidebarTrigger className="hover:bg-primary/10 transition-colors duration-200" />
-              <h1 className="text-xl font-bold text-foreground">ระบบจัดการห้องปฏิบัติการทางการแพทย์</h1>
+              <h1 className="text-xl font-bold text-foreground">คลินิกเทคนิคการแพทย์ โปร อินเตอร์ แลบ ไชยา</h1>
             </div>
             <div className="flex items-center gap-3">
               <ThemeToggle />

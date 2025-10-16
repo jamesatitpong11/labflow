@@ -4569,217 +4569,33 @@ app.get('/api/medical-records/search', async (req, res) => {
     const searchTerm = query.trim();
     const searchRegex = new RegExp(searchTerm, 'i');
 
-    // Optimized aggregation pipeline that filters early and joins efficiently
-    const medicalRecords = await db.collection('visits').aggregate([
-      // Stage 1: Filter visits based on search criteria early
-      {
-        $lookup: {
-          from: 'patients',
-          localField: 'patientId',
-          foreignField: '_id',
-          as: 'patientData'
-        }
-      },
-      {
-        $unwind: {
-          path: '$patientData',
-          preserveNullAndEmptyArrays: true
-        }
-      },
-      // Stage 2: Match search criteria
-      {
-        $match: {
-          $or: [
-            { patientName: searchRegex },
-            { patientId: searchRegex },
-            { 'patientData.idCard': searchRegex },
-            { 'patientData.phoneNumber': searchRegex },
-            { 'patientData.firstName': searchRegex },
-            { 'patientData.lastName': searchRegex }
-          ]
-        }
-      },
-      // Stage 3: Lookup orders for each visit
-      {
-        $lookup: {
-          from: 'orders',
-          localField: '_id',
-          foreignField: 'visitId',
-          as: 'orders'
-        }
-      },
-      // Stage 4: Lookup results
-      {
-        $lookup: {
-          from: 'results',
-          let: { orderIds: '$orders._id' },
-          pipeline: [
-            {
-              $match: {
-                $expr: { $in: ['$orderId', '$$orderIds'] }
-              }
-            }
-          ],
-          as: 'results'
-        }
-      },
-      // Stage 5: Group by patient to create medical records
-      {
-        $group: {
-          _id: {
-            patientKey: { $ifNull: ['$patientName', '$patientId'] }
-          },
-          id: { $first: '$_id' },
-          patientName: { $first: { $ifNull: ['$patientName', 'ไม่ระบุชื่อ'] } },
-          patientId: { $first: { $ifNull: ['$patientId', 'N/A'] } },
-          idCardNumber: { $first: { $ifNull: ['$patientData.idCard', 'ไม่ระบุ'] } },
-          phone: { $first: { $ifNull: ['$patientData.phoneNumber', 'ไม่ระบุ'] } },
-          address: { $first: { $ifNull: ['$patientData.address', 'ไม่ระบุที่อยู่'] } },
-          totalVisits: { $sum: 1 },
-          lastVisit: { $max: '$visitDate' },
-          status: { $first: 'active' },
-          visits: {
-            $push: {
-              visitId: '$_id',
-              visitNumber: '$visitNumber',
-              visitDate: '$visitDate',
-              visitTime: '$visitTime',
-              department: { $ifNull: ['$department', 'ไม่ระบุ'] },
-              orders: {
-                $map: {
-                  input: '$orders',
-                  as: 'order',
-                  in: {
-                    $map: {
-                      input: { $ifNull: ['$$order.labOrders', []] },
-                      as: 'labOrder',
-                      in: {
-                        orderId: '$$order._id',
-                        testName: { $ifNull: ['$$labOrder.testName', 'ไม่ระบุ'] },
-                        testCode: { $ifNull: ['$$labOrder.code', ''] },
-                        price: { $ifNull: ['$$labOrder.price', 0] },
-                        status: { $ifNull: ['$$order.status', 'pending'] }
-                      }
-                    }
-                  }
-                }
-              },
-              results: {
-                $map: {
-                  input: '$results',
-                  as: 'result',
-                  in: {
-                    $map: {
-                      input: { $ifNull: ['$$result.testResults', []] },
-                      as: 'testResult',
-                      in: {
-                        resultId: '$$result._id',
-                        testName: { $ifNull: ['$$testResult.testName', 'ไม่ระบุ'] },
-                        result: { $ifNull: ['$$testResult.result', 'รอผล'] },
-                        normalRange: { $ifNull: ['$$testResult.normalRange', ''] },
-                        status: { $ifNull: ['$$testResult.status', 'pending'] },
-                        attachedFiles: {
-                          $map: {
-                            input: { $ifNull: ['$$result.attachedFiles', []] },
-                            as: 'file',
-                            in: {
-                              fileName: { $ifNull: ['$$file.fileName', 'ไฟล์แนบ'] },
-                              fileData: { $ifNull: ['$$file.fileData', ''] },
-                              fileType: { $ifNull: ['$$file.fileType', 'application/octet-stream'] },
-                              uploadDate: { $ifNull: ['$$file.uploadDate', '$$result.createdAt'] }
-                            }
-                          }
-                        }
-                      }
-                    }
-                  }
-                }
-              }
-            }
-          }
-        }
-      },
-      // Stage 6: Format the final output
-      {
-        $project: {
-          _id: 0,
-          id: { $toString: '$id' },
-          patientName: 1,
-          patientId: 1,
-          idCardNumber: 1,
-          phone: 1,
-          address: 1,
-          totalVisits: 1,
-          lastVisit: {
-            $dateToString: {
-              format: '%d/%m/%Y',
-              date: { $dateFromString: { dateString: '$lastVisit' } },
-              timezone: 'Asia/Bangkok'
-            }
-          },
-          status: 1,
-          recentTests: {
-            $slice: [
-              {
-                $reduce: {
-                  input: '$visits.orders',
-                  initialValue: [],
-                  in: {
-                    $setUnion: [
-                      '$$value',
-                      {
-                        $map: {
-                          input: { $reduce: { input: '$$this', initialValue: [], in: { $concatArrays: ['$$value', '$$this'] } } },
-                          as: 'order',
-                          in: '$$order.testName'
-                        }
-                      }
-                    ]
-                  }
-                }
-              },
-              5
-            ]
-          },
-          visits: {
-            $map: {
-              input: {
-                $sortArray: {
-                  input: '$visits',
-                  sortBy: { visitDate: -1 }
-                }
-              },
-              as: 'visit',
-              in: {
-                visitId: { $toString: '$$visit.visitId' },
-                visitNumber: '$$visit.visitNumber',
-                visitDate: '$$visit.visitDate',
-                visitTime: '$$visit.visitTime',
-                department: '$$visit.department',
-                orders: {
-                  $reduce: {
-                    input: '$$visit.orders',
-                    initialValue: [],
-                    in: { $concatArrays: ['$$value', '$$this'] }
-                  }
-                },
-                results: {
-                  $reduce: {
-                    input: '$$visit.results',
-                    initialValue: [],
-                    in: { $concatArrays: ['$$value', '$$this'] }
-                  }
-                }
-              }
-            }
-          }
-        }
-      },
-      // Stage 7: Sort by last visit date
-      {
-        $sort: { lastVisit: -1 }
-      }
-    ]).toArray();
+    // Simple search from patients collection
+    const patients = await db.collection('patients').find({
+      $or: [
+        { firstName: searchRegex },
+        { lastName: searchRegex },
+        { idCard: searchRegex },
+        { phoneNumber: searchRegex },
+        { ln: searchRegex }
+      ]
+    }).toArray();
+
+    console.log(`Found ${patients.length} patients matching query: ${query}`);
+
+    // Transform to medical records format
+    const medicalRecords = patients.map(patient => ({
+      id: patient._id.toString(),
+      patientName: `${patient.firstName || ''} ${patient.lastName || ''}`.trim() || 'ไม่ระบุชื่อ',
+      patientId: patient.ln || 'N/A',
+      idCardNumber: patient.idCard || null,
+      phone: patient.phoneNumber || null,
+      address: patient.address || 'ไม่ระบุที่อยู่',
+      totalVisits: 0, // Will be updated when we add visit lookup
+      lastVisit: 'ไม่มีข้อมูล',
+      status: 'active',
+      recentTests: [],
+      visits: []
+    }));
 
     console.log(`Found ${medicalRecords.length} medical records for query: ${query}`);
     res.json(medicalRecords);
