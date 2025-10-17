@@ -332,7 +332,7 @@ export default function Reports() {
     return amount.toLocaleString('th-TH');
   };
 
-  // Format date to DD/MM/YYYY
+  // Format date to DD/MM/YYYY (Buddhist Era - พ.ศ.)
   const formatDateThai = (dateString: string) => {
     if (!dateString) return '';
     const date = new Date(dateString);
@@ -345,7 +345,7 @@ export default function Reports() {
     
     const day = date.getDate().toString().padStart(2, '0');
     const month = (date.getMonth() + 1).toString().padStart(2, '0');
-    const year = date.getFullYear();
+    const year = date.getFullYear() + 543; // แปลงเป็นปี พ.ศ.
     return `${day}/${month}/${year}`;
   };
 

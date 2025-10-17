@@ -2915,10 +2915,10 @@ async function getVisitorReportData({ dateFrom, dateTo, department }) {
       
       if (isNaN(date.getTime())) return '-';
       
-      // Format as DD/MM/YYYY (Thai format)
+      // Format as DD/MM/YYYY (Thai format with Buddhist Era - พ.ศ.)
       const day = date.getDate().toString().padStart(2, '0');
       const month = (date.getMonth() + 1).toString().padStart(2, '0');
-      const year = date.getFullYear();
+      const year = date.getFullYear() + 543; // แปลงเป็นปี พ.ศ.
       
       return `${day}/${month}/${year}`;
     } catch (error) {
@@ -3058,15 +3058,24 @@ async function getVisitorReportData({ dateFrom, dateTo, department }) {
 
     console.log('Excel export visitor data count:', visitorData.length);
 
-    console.log('VTS data sample for Excel:', visitorData.length > 0 ? {
-      visitNumber: visitorData[0].visitNumber,
-      firstName: visitorData[0].firstName,
-      lastName: visitorData[0].lastName,
-      birthdate: visitorData[0].birthdate,
-      birthdateType: typeof visitorData[0].birthdate
+    // Format dates to Buddhist Era before returning
+    const formattedVisitorData = visitorData.map(visitor => ({
+      ...visitor,
+      birthdate: formatThaiDate(visitor.birthdate),
+      patientCreatedAt: formatThaiDate(visitor.patientCreatedAt),
+      visitDate: formatThaiDate(visitor.visitDate)
+    }));
+
+    console.log('VTS data sample for Excel:', formattedVisitorData.length > 0 ? {
+      visitNumber: formattedVisitorData[0].visitNumber,
+      firstName: formattedVisitorData[0].firstName,
+      lastName: formattedVisitorData[0].lastName,
+      birthdate: formattedVisitorData[0].birthdate,
+      patientCreatedAt: formattedVisitorData[0].patientCreatedAt,
+      visitDate: formattedVisitorData[0].visitDate
     } : 'No data');
     
-    return { data: visitorData };
+    return { data: formattedVisitorData };
   } catch (error) {
     console.error('Error in getVisitorReportData:', error);
     return { error: 'ไม่สามารถดึงข้อมูลผู้ป่วยได้' };
