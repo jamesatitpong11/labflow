@@ -1147,9 +1147,20 @@ export default function PatientRegistration() {
 
       console.log('🧪 Test sticker data:', testStickerData);
 
-      // Print the test sticker
-      const { printSticker } = await import('@/utils/stickerPrinter');
-      await printSticker(testStickerData);
+      // พิมพ์สติ๊กเกอร์ด้วยเทมเพลตใหม่ 50x25mm
+      const { createSticker50x25HTML } = await import('@/utils/stickerbarcode50x25');
+      const { printSticker } = await import('@/lib/printer-utils');
+      const testHtml = createSticker50x25HTML({
+        title: testStickerData.title,
+        firstName: testStickerData.firstName,
+        lastName: testStickerData.lastName,
+        ln: testStickerData.ln,
+        age: testStickerData.age,
+        visitNumber: testStickerData.visitNumber,
+        visitDate: testStickerData.visitDate,
+        visitTime: testStickerData.visitTime,
+      });
+      await printSticker(testHtml);
       
       showSuccessToast({
         title: "ทดสอบพิมพ์สติ๊กเกอร์สำเร็จ",
@@ -1195,33 +1206,28 @@ export default function PatientRegistration() {
 
       console.log(`🎯 Using configured sticker printer: ${stickerPrinterName}`);
 
-      // Prepare sticker data
-      const { printSticker } = await import('@/utils/stickerPrinter');
-      
-      const stickerData = {
-        idCard: patientData.idCard && !patientData.idCard.startsWith('NO_ID_') 
-          ? patientData.idCard 
-          : visit.visitNumber, // Use visit number if no ID card
+      // สร้าง HTML สติ๊กเกอร์ด้วยเทมเพลตใหม่ และสั่งพิมพ์
+      const { createSticker50x25HTML } = await import('@/utils/stickerbarcode50x25');
+      const { printSticker } = await import('@/lib/printer-utils');
+      const visitDateDisplay = visit.visitDate
+        ? new Date(visit.visitDate).toLocaleDateString('th-TH', { day: '2-digit', month: '2-digit', year: '2-digit' })
+        : new Date().toLocaleDateString('th-TH', { day: '2-digit', month: '2-digit', year: '2-digit' });
+      const visitTimeDisplay = visit.visitTime && visit.visitTime.trim().length > 0
+        ? visit.visitTime
+        : new Date().toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit' });
+
+      const stickerHtml = createSticker50x25HTML({
         title: patientData.title || '',
         firstName: patientData.firstName,
         lastName: patientData.lastName,
         visitNumber: visit.visitNumber,
         ln: patientData.ln || '',
         age: String(patientData.age || ''),
-        visitDate: new Date(visit.visitDate).toLocaleDateString('th-TH', {
-          day: '2-digit',
-          month: '2-digit',
-          year: '2-digit'
-        }),
-        visitTime: visit.visitTime || new Date().toLocaleTimeString('th-TH', {
-          hour: '2-digit',
-          minute: '2-digit'
-        }),
-        printerName: stickerPrinterName
-      };
+        visitDate: visitDateDisplay,
+        visitTime: visitTimeDisplay,
+      });
 
-      // Print the sticker (same pattern as medical record)
-      await printSticker(stickerData);
+      await printSticker(stickerHtml);
       
       showSuccessToast({
         title: "พิมพ์สติ๊กเกอร์สำเร็จ",

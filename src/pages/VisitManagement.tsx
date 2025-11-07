@@ -760,233 +760,31 @@ export default function VisitManagement() {
       age: selectedPatient.age
     });
 
-    const printContent = `<!DOCTYPE html>
-<html>
-<head>
-  <meta charset="utf-8">
-  <title>สติ๊กเกอร์ - ${visitData.visitNumber}</title>
-  <link href="https://fonts.googleapis.com/css2?family=Itim&display=swap" rel="stylesheet">
-  <script src="https://cdn.jsdelivr.net/npm/jsbarcode@3.11.5/dist/JsBarcode.all.min.js"></script>
-  <style>
-    @page {
-      size: 105mm 25mm;
-      margin: 0mm;
-    }
-    @media print {
-      * {
-        -webkit-print-color-adjust: exact !important;
-        color-adjust: exact !important;
-        print-color-adjust: exact !important;
-      }
-    }
-          body { 
-            font-family: 'Itim', 'Arial', sans-serif; 
-            margin: 0;
-            padding: 0;
-            font-size: 8px; 
-            line-height: 0.8;
-            width: 100%;
-            height: 100%;
-            box-sizing: border-box;
-            -webkit-font-smoothing: antialiased;
-            -moz-osx-font-smoothing: grayscale;
-            text-rendering: optimizeLegibility;
-            image-rendering: -webkit-optimize-contrast;
-            image-rendering: crisp-edges;
-          }
-            .page-container {
-              width: 105mm;
-              height: 25mm;
-              display: flex;
-              padding: 0;
-              margin: 0;
-              align-items: center;
-              box-sizing: border-box;
-            }
-            .sticker {
-              width: 32mm;
-              height: 25mm;
-              padding: 1mm;
-              box-sizing: border-box;
-              display: flex;
-              flex-direction: column;
-              justify-content: space-between;
-              text-align: center;
-              font-size: 6px;
-              line-height: 1.1;
-              background: white;
-            }
-            .sticker:nth-child(1) {
-              margin-left: 2mm;
-            }
-            .sticker:nth-child(2) {
-              margin-left: 2mm;
-            }
-            .sticker:nth-child(3) {
-              margin-left: 2mm;
-              margin-right: 0.2mm;
-            }
-                      .visit-number {
-            font-size: 12px;
-            font-weight: bold;
-            text-align: left;
-            margin-bottom: 0.5mm;
-            color: #000000;
-            text-shadow: none;
-            -webkit-font-smoothing: antialiased;
-          }
-          .patient-title-name {
-            font-size: 8px;
-            font-weight: 500;
-            text-align: left;
-            line-height: 0.8;
-            margin-bottom: 0.5mm;
-            color: #000000;
-            text-shadow: none;
-            -webkit-font-smoothing: antialiased;
-          }
-          .patient-lastname {
-            font-size: 8px;
-            font-weight: 500;
-            text-align: left;
-            line-height: 0.8;
-            margin-bottom: 0.5mm;
-            color: #000000;
-            text-shadow: none;
-            -webkit-font-smoothing: antialiased;
-          }
-            .visit-info {
-              font-size: 7px;
-              font-weight: 500;
-              text-align: left;
-              line-height: 0.8;
-              margin-bottom: 0.5mm;
-              width: 100%;
-              color: #000000;
-              text-shadow: none;
-              -webkit-font-smoothing: antialiased;
-            }
-            .barcode {
-              height: 8mm;
-              width: 90%;
-              margin: 0 auto;
-              background: white;
-              display: flex;
-              align-items: center;
-              justify-content: center;
-              image-rendering: -webkit-optimize-contrast;
-              image-rendering: crisp-edges;
-            }
-            .barcode svg {
-              height: 8mm;
-              width: 100%;
-              shape-rendering: crispEdges;
-              image-rendering: -webkit-optimize-contrast;
-              image-rendering: crisp-edges;
-            }
-          </style>
-        </head>
-        <body>
-          <div class="page-container">
-            <!-- Sticker 1 -->
-            <div class="sticker">
-              <div class="visit-number">${visitData.visitNumber}</div>
-              <div class="patient-title-name">${selectedPatient.title}${selectedPatient.firstName}</div>
-              <div class="patient-lastname">${selectedPatient.lastName}</div>
-              <div class="visit-info">อายุ ${selectedPatient.age} ปี ${new Date().toLocaleDateString('th-TH')}</div>
-              <div class="barcode">
-                <svg id="barcode1"></svg>
-              </div>
-            </div>
-            
-            <!-- Sticker 2 -->
-            <div class="sticker">
-              <div class="visit-number">${visitData.visitNumber}</div>
-              <div class="patient-title-name">${selectedPatient.title}${selectedPatient.firstName}</div>
-              <div class="patient-lastname">${selectedPatient.lastName}</div>
-              <div class="visit-info">อายุ ${selectedPatient.age} ปี ${new Date().toLocaleDateString('th-TH')}</div>
-              <div class="barcode">
-                <svg id="barcode2"></svg>
-              </div>
-            </div>
-            
-            <!-- Sticker 3 -->
-            <div class="sticker">
-              <div class="visit-number">${visitData.visitNumber}</div>
-              <div class="patient-title-name">${selectedPatient.title}${selectedPatient.firstName}</div>
-              <div class="patient-lastname">${selectedPatient.lastName}</div>
-              <div class="visit-info">อายุ ${selectedPatient.age} ปี ${new Date().toLocaleDateString('th-TH')}</div>
-              <div class="barcode">
-                <svg id="barcode3"></svg>
-              </div>
-            </div>
-          </div>
-          
-          <script>
-            function generateBarcodes() {
-              try {
-                if (typeof JsBarcode !== 'undefined') {
-                  // Generate barcodes for all three stickers
-                  JsBarcode("#barcode1", "${visitData.visitNumber}", {
-                    format: "CODE128",
-                    width: 1.2,
-                    height: 20,
-                    displayValue: false,
-                    margin: 0,
-                    background: "#ffffff",
-                    lineColor: "#000000"
-                  });
-                  
-                  JsBarcode("#barcode2", "${visitData.visitNumber}", {
-                    format: "CODE128",
-                    width: 1.2,
-                    height: 20,
-                    displayValue: false,
-                    margin: 0,
-                    background: "#ffffff",
-                    lineColor: "#000000"
-                  });
-                  
-                  JsBarcode("#barcode3", "${visitData.visitNumber}", {
-                    format: "CODE128",
-                    width: 1.2,
-                    height: 20,
-                    displayValue: false,
-                    margin: 0,
-                    background: "#ffffff",
-                    lineColor: "#000000"
-                  });
-                } else {
-                  // Fallback if JsBarcode is not loaded
-                  console.log('JsBarcode not loaded, retrying...');
-                  setTimeout(generateBarcodes, 100);
-                }
-              } catch (error) {
-                console.error('Error generating barcode:', error);
-              }
-            }
-            
-            // Try multiple ways to ensure the script runs
-            if (document.readyState === 'loading') {
-              document.addEventListener('DOMContentLoaded', generateBarcodes);
-            } else {
-              generateBarcodes();
-            }
-            
-            window.onload = generateBarcodes;
-            
-            // Additional fallback
-            setTimeout(generateBarcodes, 500);
-          </script>
-        </body>
-      </html>
-    `;
+    // ใช้เทมเพลตใหม่ 50x25mm แบบเดียวกับหน้า PatientRegistration
+    const { createSticker50x25HTML } = await import('@/utils/stickerbarcode50x25');
+    const visitDateDisplay = visitData.visitDate
+      ? new Date(visitData.visitDate).toLocaleDateString('th-TH', { day: '2-digit', month: '2-digit', year: '2-digit' })
+      : new Date().toLocaleDateString('th-TH', { day: '2-digit', month: '2-digit', year: '2-digit' });
+    const visitTimeDisplay = visitData.visitTime && visitData.visitTime.trim().length > 0
+      ? visitData.visitTime
+      : new Date().toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit' });
 
-    console.log('Final print content length:', printContent.length);
-    console.log('Calling handlePrintStickerUtil...');
-    
-    // Use the new printer utility hook
-    const result = await handlePrintStickerUtil(printContent);
+    const stickerHtml = createSticker50x25HTML({
+      title: selectedPatient.title || '',
+      firstName: selectedPatient.firstName,
+      lastName: selectedPatient.lastName,
+      ln: selectedPatient.ln || 'N/A',
+      age: String(selectedPatient.age || ''),
+      visitNumber: String(visitData.visitNumber || ''),
+      visitDate: visitDateDisplay,
+      visitTime: visitTimeDisplay,
+    });
+
+    console.log('Final stickerHtml length:', stickerHtml.length);
+    console.log('Calling handlePrintStickerUtil with 50x25 template...');
+
+    // ใช้ printer hook ในการพิมพ์สติ๊กเกอร์
+    const result = await handlePrintStickerUtil(stickerHtml);
     console.log('Print result:', result);
   };
 

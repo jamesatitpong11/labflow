@@ -295,229 +295,6 @@ export const printReceipt = async (content: string): Promise<{ success: boolean;
   }
 };
 
-// Generate sample sticker content for testing (3 stickers per sheet)
-export const generateSampleStickerContent = (): string => {
-  const sampleData = {
-    visitNumber: 'V' + Date.now().toString().slice(-6),
-    title: 'นาย',
-    firstName: 'ทดสอบ',
-    lastName: 'ระบบ',
-    age: '35',
-    date: new Date().toLocaleDateString('th-TH')
-  };
-
-  return `
-    <!DOCTYPE html>
-    <html>
-      <head>
-        <meta charset="utf-8">
-        <title>Test Sticker - ${sampleData.visitNumber}</title>
-        <link href="https://fonts.googleapis.com/css2?family=Itim&display=swap" rel="stylesheet">
-        <script src="https://cdn.jsdelivr.net/npm/jsbarcode@3.11.5/dist/JsBarcode.all.min.js"></script>
-        <style>
-          @page { 
-            size: 105mm 25mm; 
-            margin: 0mm; 
-          }
-          body {
-            margin: 0;
-            padding: 0;
-            font-family: 'Itim', 'Arial', sans-serif;
-            background: white;
-            color: black;
-            width: 105mm;
-            height: 25mm;
-            box-sizing: border-box;
-            display: flex;
-            align-items: center;
-          }
-          .page-container {
-            width: 105mm;
-            height: 25mm;
-            display: flex;
-            align-items: center;
-            justify-content: flex-start;
-            padding: 0;
-            margin: 0;
-          }
-          .sticker {
-            width: 32mm;
-            height: 25mm;
-            padding: 1mm;
-            box-sizing: border-box;
-            display: flex;
-            flex-direction: column;
-            justify-content: space-between;
-            font-size: 6px;
-            line-height: 0.8mm;
-            text-align: center;
-            background: white;
-          }
-          .sticker:nth-child(1) {
-            margin-left: 2mm;
-          }
-          .sticker:nth-child(2) {
-            margin-left: 2mm;
-          }
-          .sticker:nth-child(3) {
-            margin-left: 2mm;
-            margin-right: 0.2mm;
-          }
-          .visit-number {
-            font-size: 12px;
-            font-weight: bold;
-            text-align: left;
-            margin-bottom: 0.5mm;
-            color: #000000;
-            text-shadow: none;
-            -webkit-font-smoothing: antialiased;
-          }
-          .patient-title-name {
-            font-size: 8px;
-            font-weight: 500;
-            text-align: left;
-            line-height: 0.8;
-            margin-bottom: 0.5mm;
-            color: #000000;
-            text-shadow: none;
-            -webkit-font-smoothing: antialiased;
-          }
-          .patient-lastname {
-            font-size: 8px;
-            font-weight: 500;
-            text-align: left;
-            line-height: 0.8;
-            margin-bottom: 0.5mm;
-            color: #000000;
-            text-shadow: none;
-            -webkit-font-smoothing: antialiased;
-          }
-          .visit-info {
-            font-size: 7px;
-            font-weight: 500;
-            text-align: left;
-            line-height: 0.8;
-            margin-bottom: 0.5mm;
-            color: #000000;
-            text-shadow: none;
-            -webkit-font-smoothing: antialiased;
-          }
-          .barcode {
-            height: 8mm;
-            width: 90%;
-            margin: 0 auto;
-            background: white;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            image-rendering: -webkit-optimize-contrast;
-            image-rendering: crisp-edges;
-          }
-          .barcode svg {
-            height: 8mm;
-            width: 100%;
-            shape-rendering: crispEdges;
-            image-rendering: -webkit-optimize-contrast;
-            image-rendering: crisp-edges;
-          }
-        </style>
-      </head>
-      <body>
-        <div class="page-container">
-          <!-- Sticker 1 -->
-          <div class="sticker">
-            <div class="visit-number">${sampleData.visitNumber}</div>
-            <div class="patient-title-name">${sampleData.title}${sampleData.firstName}</div>
-            <div class="patient-lastname">${sampleData.lastName}</div>
-            <div class="visit-info">อายุ ${sampleData.age} ปี ${sampleData.date}</div>
-            <div class="barcode">
-              <svg id="barcode1"></svg>
-            </div>
-          </div>
-          
-          <!-- Sticker 2 -->
-          <div class="sticker">
-            <div class="visit-number">${sampleData.visitNumber}</div>
-            <div class="patient-title-name">${sampleData.title}${sampleData.firstName}</div>
-            <div class="patient-lastname">${sampleData.lastName}</div>
-            <div class="visit-info">อายุ ${sampleData.age} ปี ${sampleData.date}</div>
-            <div class="barcode">
-              <svg id="barcode2"></svg>
-            </div>
-          </div>
-          
-          <!-- Sticker 3 -->
-          <div class="sticker">
-            <div class="visit-number">${sampleData.visitNumber}</div>
-            <div class="patient-title-name">${sampleData.title}${sampleData.firstName}</div>
-            <div class="patient-lastname">${sampleData.lastName}</div>
-            <div class="visit-info">อายุ ${sampleData.age} ปี ${sampleData.date}</div>
-            <div class="barcode">
-              <svg id="barcode3"></svg>
-            </div>
-          </div>
-        </div>
-        
-        <script>
-          function generateBarcodes() {
-            try {
-              if (typeof JsBarcode !== 'undefined') {
-                // Generate barcodes for all three stickers
-                JsBarcode("#barcode1", "${sampleData.visitNumber}", {
-                  format: "CODE128",
-                  width: 1.2,
-                  height: 20,
-                  displayValue: false,
-                  margin: 0,
-                  background: "#ffffff",
-                  lineColor: "#000000"
-                });
-                
-                JsBarcode("#barcode2", "${sampleData.visitNumber}", {
-                  format: "CODE128",
-                  width: 1.2,
-                  height: 20,
-                  displayValue: false,
-                  margin: 0,
-                  background: "#ffffff",
-                  lineColor: "#000000"
-                });
-                
-                JsBarcode("#barcode3", "${sampleData.visitNumber}", {
-                  format: "CODE128",
-                  width: 1.2,
-                  height: 20,
-                  displayValue: false,
-                  margin: 0,
-                  background: "#ffffff",
-                  lineColor: "#000000"
-                });
-              } else {
-                // Fallback if JsBarcode is not loaded
-                console.log('JsBarcode not loaded, retrying...');
-                setTimeout(generateBarcodes, 100);
-              }
-            } catch (error) {
-              console.error('Error generating barcode:', error);
-            }
-          }
-          
-          // Try multiple ways to ensure the script runs
-          if (document.readyState === 'loading') {
-            document.addEventListener('DOMContentLoaded', generateBarcodes);
-          } else {
-            generateBarcodes();
-          }
-          
-          window.onload = generateBarcodes;
-          
-          // Additional fallback
-          setTimeout(generateBarcodes, 500);
-        </script>
-      </body>
-    </html>
-  `;
-};
 
 // Test printer connection and configuration
 export const testPrinterConnection = async (): Promise<{ 
@@ -573,8 +350,67 @@ export const testPrinterConnection = async (): Promise<{
 
 // Print test sticker
 export const printTestSticker = async (): Promise<{ success: boolean; message?: string }> => {
-  const testContent = generateSampleStickerContent();
-  return await printSticker(testContent);
+  try {
+    const { createSticker50x25HTML } = await import('@/utils/stickerbarcode50x25');
+    const now = new Date();
+    const sampleData = {
+      title: 'นาย',
+      firstName: 'ทดสอบ',
+      lastName: 'ระบบ',
+      ln: '67001',
+      age: '35',
+      visitNumber: 'V' + Date.now().toString().slice(-6),
+      visitDate: now.toLocaleDateString('th-TH'),
+      visitTime: now.toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit' }),
+    };
+    const testContent = createSticker50x25HTML(sampleData);
+    return await printSticker(testContent);
+  } catch (error) {
+    console.warn('Fallback to simple 50x25 sample sticker due to error:', error);
+    const visit = 'V' + Date.now().toString().slice(-6);
+    const testContent = `<!DOCTYPE html>
+      <html>
+        <head>
+          <meta charset="utf-8">
+          <title>Test Sticker ${visit}</title>
+          <style>
+            @page { size: 50mm 25mm; margin: 0; }
+            html, body {
+              width: 45mm;
+              height: 22.5mm;
+              margin: 0;
+              padding: 0;
+              font-family: 'Sarabun', 'Tahoma', Arial, sans-serif;
+              background: #fff;
+              overflow: hidden;
+            }
+            .sticker {
+              width: 45mm;
+              height: 22.5mm;
+              margin: 0 auto;
+              padding: 0.6mm;
+              box-sizing: border-box;
+              display: flex;
+              flex-direction: column;
+              justify-content: space-between;
+              border: 0.2pt dashed #999;
+            }
+            .line1 { font-size: 8pt; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+            .line2 { font-size: 4.5pt; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+            .line4 { text-align: center; font-size: 7.5pt; letter-spacing: 0.2px; }
+          </style>
+        </head>
+        <body>
+          <div class="sticker">
+            <div class="line1">นาย ทดสอบ ระบบ</div>
+            <div class="line2">LN: 67001 อายุ 35 ปี</div>
+            <div class="line4">visit: ${visit}</div>
+          </div>
+          <script>window.__barcodeReady = true;</script>
+        </body>
+      </html>`;
+    return await printSticker(testContent);
+  }
 };
 
 // Print sticker with configured printer
@@ -630,6 +466,18 @@ export const printSticker = async (content: string): Promise<{ success: boolean;
       const printWindow = window.open('', '_blank', 'width=800,height=600,scrollbars=yes');
       
       if (printWindow) {
+        // Extract any <style> blocks from original content to preserve template CSS
+        const extractStyleBlocks = (html: string): string => {
+          try {
+            const matches = html.match(/<style[\s\S]*?<\/style>/gi);
+            return matches ? matches.join('\n') : '';
+          } catch (_) {
+            return '';
+          }
+        };
+
+        const userStyles = extractStyleBlocks(content || '');
+
         // Write content to the new window
         printWindow.document.write(`
           <!DOCTYPE html>
@@ -638,10 +486,8 @@ export const printSticker = async (content: string): Promise<{ success: boolean;
             <meta charset="UTF-8">
             <title>Print Sticker</title>
             <style>
-              @page {
-                size: 105mm 25mm;
-                margin: 0mm;
-              }
+              /* Sync with single 50x25mm sticker */
+              @page { size: 50mm 25mm; margin: 0mm; }
               body {
                 margin: 0;
                 padding: 0;
@@ -652,6 +498,7 @@ export const printSticker = async (content: string): Promise<{ success: boolean;
                 body { margin: 0; padding: 0; }
               }
             </style>
+            ${userStyles}
           </head>
           <body>
             ${content}
@@ -661,8 +508,8 @@ export const printSticker = async (content: string): Promise<{ success: boolean;
                   window.print();
                   setTimeout(function() {
                     window.close();
-                  }, 1000);
-                }, 500);
+                  }, 150);
+                }, 150);
               };
             </script>
           </body>
@@ -674,15 +521,100 @@ export const printSticker = async (content: string): Promise<{ success: boolean;
       } else {
         return { success: false, message: "ไม่สามารถเปิดหน้าต่างพิมพ์ได้" };
       }
-    } else {
+  } else {
       console.log('Not in Electron - using web print');
       
-      // Web fallback
-      const printWindow = window.open('', '_blank');
+      // Web fallback with resource loading wait
+      const printWindow = window.open('', '_blank', 'width=800,height=600,scrollbars=yes');
       if (printWindow) {
-        printWindow.document.write(content);
+        // Try to extract body content if a full HTML document is provided
+        const extractBodyContent = (html: string): string => {
+          try {
+            const lower = html.toLowerCase();
+            const startIdx = lower.indexOf('<body');
+            const endIdx = lower.lastIndexOf('</body>');
+            if (startIdx !== -1 && endIdx !== -1) {
+              // Find '>' of opening body tag
+              const openEnd = lower.indexOf('>', startIdx);
+              if (openEnd !== -1 && endIdx > openEnd) {
+                return html.substring(openEnd + 1, endIdx);
+              }
+            }
+          } catch (_) {}
+          return html;
+        };
+
+        // Extract any <style> blocks from original content to preserve template CSS
+        const extractStyleBlocks = (html: string): string => {
+          try {
+            const matches = html.match(/<style[\s\S]*?<\/style>/gi);
+            return matches ? matches.join('\n') : '';
+          } catch (_) {
+            return '';
+          }
+        };
+
+        const bodyContent = extractBodyContent(content || '');
+        const userStyles = extractStyleBlocks(content || '');
+        const wrapped = `<!DOCTYPE html>
+          <html>
+          <head>
+            <meta charset="UTF-8">
+            <title>Print Sticker</title>
+            <style>
+              @page { size: 50mm 25mm; margin: 0mm; }
+              html, body { margin: 0; padding: 0; width: 50mm; height: 25mm; overflow: hidden; }
+              #content { width: 50mm; height: 25mm; }
+            </style>
+            ${userStyles}
+          </head>
+          <body>
+            <div id="content">${bodyContent}</div>
+            <script>
+              (function(){
+                function delay(ms){ return new Promise(r => setTimeout(r, ms)); }
+                async function waitResources(){
+                  try {
+                    // Wait for all images to be ready
+                    const imgs = Array.from(document.images);
+                    await Promise.all(imgs.map(img => {
+                      if ('decode' in img) {
+                        return img.decode().catch(() => {});
+                      }
+                      if (img.complete) return Promise.resolve();
+                      return new Promise(res => {
+                        img.addEventListener('load', res, { once: true });
+                        img.addEventListener('error', res, { once: true });
+                      });
+                    }));
+                    // Wait for fonts if available
+                    if (document.fonts && document.fonts.ready) {
+                      await document.fonts.ready.catch(()=>{});
+                    }
+                    // Wait for JsBarcode readiness flag if present
+                    var maxWait = 5000; // up to 5s
+                    var start = Date.now();
+                    while (Date.now() - start < maxWait) {
+                      if (window.__barcodeReady === true) break;
+                      await delay(50);
+                    }
+                  } catch (e) {}
+                  setTimeout(function(){
+                    window.print();
+                    setTimeout(function(){ window.close(); }, 500);
+                  }, 100);
+                }
+                if (document.readyState === 'complete') {
+                  waitResources();
+                } else {
+                  window.addEventListener('load', waitResources);
+                }
+              })();
+            </script>
+          </body>
+          </html>`;
+        printWindow.document.write(wrapped);
         printWindow.document.close();
-        printWindow.print();
         return { success: true, message: "เปิดหน้าต่างพิมพ์แล้ว" };
       } else {
         return { success: false, message: "ไม่สามารถเปิดหน้าต่างพิมพ์ได้" };

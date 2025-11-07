@@ -975,7 +975,7 @@ ipcMain.handle('print-sticker', async (event, options) => {
         right: 0
       },
       pageSize: {
-        width: 105000, // 105mm in microns (same as web)
+        width: 50000, // 50mm in microns (paper width)
         height: 25000  // 25mm in microns (sticker height)
       },
       scaleFactor: 100,
@@ -1038,10 +1038,25 @@ ipcMain.handle('print-sticker', async (event, options) => {
     
     console.log('✅ Content loading completed');
     
-    // Reduced wait for dynamic content (barcodes, etc.)
-    console.log('⏳ Waiting for dynamic content to load...');
-    await new Promise(resolve => setTimeout(resolve, 1000)); // Reduced from 3000ms to 1000ms
-    console.log('✅ Dynamic content wait completed');
+    // Wait for dynamic content readiness flag if provided by the page
+    console.log('⏳ Waiting for dynamic content readiness (window.__barcodeReady)...');
+    const waitReady = async (timeoutMs = 5000) => {
+      const start = Date.now();
+      while (Date.now() - start < timeoutMs) {
+        try {
+          const ready = await printWindow.webContents.executeJavaScript('window.__barcodeReady === true', true);
+          if (ready) {
+            return true;
+          }
+        } catch (e) {
+          // Ignore and keep waiting
+        }
+        await new Promise(r => setTimeout(r, 100));
+      }
+      return false;
+    };
+    const readyFlag = await waitReady(5000);
+    console.log('✅ Readiness check completed. Ready:', readyFlag);
     
     console.log('🚀 Starting print process...');
     return new Promise((resolve) => {
@@ -1421,6 +1436,32 @@ ipcMain.handle('close-window', () => {
 
 ipcMain.handle('is-maximized', () => {
   return mainWindow ? mainWindow.isMaximized() : false;
+});
+
+// Force focus back to the main window/webContents (useful after blocking dialogs)
+ipcMain.handle('focus-window', async () => {
+  try {
+    if (mainWindow) {
+      // Ensure the window is visible and focusable
+      if (!mainWindow.isVisible()) {
+        mainWindow.show();
+      }
+      mainWindow.setFocusable(true);
+      // Toggle always-on-top briefly to force focus on Windows
+      mainWindow.setAlwaysOnTop(true, 'screen-saver');
+      mainWindow.setAlwaysOnTop(false);
+      // Focus window and its webContents
+      mainWindow.focus();
+      if (mainWindow.webContents) {
+        mainWindow.webContents.focus();
+      }
+      return true;
+    }
+    return false;
+  } catch (err) {
+    console.error('Error focusing window:', err);
+    return false;
+  }
 });
 
 // ==================== ADDITIONAL PRINTER TOOLS ====================

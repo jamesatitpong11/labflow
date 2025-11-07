@@ -2455,45 +2455,46 @@ app.get('/api/reports/data', async (req, res) => {
         return res.status(500).json({ error: 'Failed to generate lab report' });
       }
     }
-    
-    // Handle sales report (salelab) separately
+
+    // Handle sales lab report separately
     if (reportType === 'salelab') {
-      console.log('Routing to sales report handler...');
+      console.log('Routing to sales lab report handler...');
       try {
         const salesResponse = await getSalesReportData({ dateFrom, dateTo, department });
         const salesData = salesResponse.data || [];
         const itemColumns = salesResponse.itemColumns || [];
-        
-        // Calculate stats from filtered data (already filtered by date range)
+
+        // Calculate stats from returned sales data
         const todayPatients = salesData.length;
         const todayTests = salesData.reduce((sum, sale) => {
           return sum + itemColumns.reduce((itemSum, col) => {
-            return itemSum + (sale[`item_${col}`] > 0 ? 1 : 0);
+            const val = sale[`item_${col}`];
+            return itemSum + (val && Number(val) > 0 ? 1 : 0);
           }, 0);
         }, 0);
-        const todayRevenue = salesData.reduce((sum, sale) => {
-          // ตัดรายการฟรีออกจากการคำนวณรายได้
-          if (sale.paymentMethod && ['free', 'ฟรี', 'Free', 'FREE'].includes(sale.paymentMethod)) {
-            console.log(`Excluding FREE sale from revenue: ${sale.totalAmount} (${sale.paymentMethod})`);
-            return sum; // ไม่บวกรายการฟรี
-          }
-          return sum + (sale.totalAmount || 0);
-        }, 0);
+        const todayRevenue = salesData.reduce((sum, sale) => sum + (Number(sale.totalAmount) || 0), 0);
+        const growth = 0; // Placeholder; implement comparison with previous period if needed
 
         return res.json({
           stats: {
             todayPatients,
             todayTests,
             todayRevenue,
-            growth: 0
+            growth
           },
           data: salesData,
-          itemColumns: itemColumns
+          itemColumns
         });
       } catch (error) {
         console.error('Error in getSalesReportData:', error);
-        return await handleSalesReport(req, res, { dateFrom, dateTo, department });
+        return res.status(500).json({ error: 'Failed to generate sales lab report' });
       }
+    }
+    
+    // Handle import report separately
+    if (reportType === 'import') {
+      console.log('Routing to import report handler...');
+      return await handleImportReport(req, res, { dateFrom, dateTo, department });
     }
     
     // Set date range for other reports
@@ -2725,7 +2726,7 @@ async function handleVisitorReport(req, res, { dateFrom, dateTo, department }) {
           // Convert createdAt to Thailand timezone for display
           patientCreatedAt: {
             $dateToString: {
-              format: '%Y-%m-%d',
+              format: '%d/%m/%Y',
               date: '$patient.createdAt',
               timezone: 'Asia/Bangkok'
             }
@@ -2733,7 +2734,7 @@ async function handleVisitorReport(req, res, { dateFrom, dateTo, department }) {
           // Convert visit createdAt to Thailand timezone for display
           visitDate: {
             $dateToString: {
-              format: '%Y-%m-%d',
+              format: '%d/%m/%Y',
               date: '$createdAt',
               timezone: 'Asia/Bangkok'
             }
@@ -2828,6 +2829,12 @@ app.get('/api/reports/export/excel', async (req, res) => {
       reportData = labResponse.data;
       console.log('Excel export - Lab data count:', reportData ? reportData.length : 0);
       console.log('Excel export - Sample lab data:', reportData ? reportData[0] : 'No data');
+    } else if (reportType === 'import') {
+      // Get import report data
+      const importResponse = await getImportReportData({ dateFrom, dateTo, department });
+      reportData = importResponse.data;
+      console.log('Excel export - Import data count:', reportData ? reportData.length : 0);
+      console.log('Excel export - Sample import data:', reportData ? reportData[0] : 'No data');
     } else {
       // Get regular report data
       const response = await getRegularReportData({ reportType, dateFrom, dateTo, department });
@@ -2915,10 +2922,10 @@ async function getVisitorReportData({ dateFrom, dateTo, department }) {
       
       if (isNaN(date.getTime())) return '-';
       
-      // Format as DD/MM/YYYY (Thai format with Buddhist Era - พ.ศ.)
+      // Format as DD/MM/YYYY (Thai format)
       const day = date.getDate().toString().padStart(2, '0');
       const month = (date.getMonth() + 1).toString().padStart(2, '0');
-      const year = date.getFullYear() + 543; // แปลงเป็นปี พ.ศ.
+      const year = date.getFullYear();
       
       return `${day}/${month}/${year}`;
     } catch (error) {
@@ -3038,7 +3045,7 @@ async function getVisitorReportData({ dateFrom, dateTo, department }) {
           // Convert createdAt to Thailand timezone for display
           patientCreatedAt: {
             $dateToString: {
-              format: '%Y-%m-%d',
+              format: '%d/%m/%Y',
               date: '$patient.createdAt',
               timezone: 'Asia/Bangkok'
             }
@@ -3046,7 +3053,7 @@ async function getVisitorReportData({ dateFrom, dateTo, department }) {
           // Convert visit createdAt to Thailand timezone for display
           visitDate: {
             $dateToString: {
-              format: '%Y-%m-%d',
+              format: '%d/%m/%Y',
               date: '$createdAt',
               timezone: 'Asia/Bangkok'
             }
@@ -3058,24 +3065,15 @@ async function getVisitorReportData({ dateFrom, dateTo, department }) {
 
     console.log('Excel export visitor data count:', visitorData.length);
 
-    // Format dates to Buddhist Era before returning
-    const formattedVisitorData = visitorData.map(visitor => ({
-      ...visitor,
-      birthdate: formatThaiDate(visitor.birthdate),
-      patientCreatedAt: formatThaiDate(visitor.patientCreatedAt),
-      visitDate: formatThaiDate(visitor.visitDate)
-    }));
-
-    console.log('VTS data sample for Excel:', formattedVisitorData.length > 0 ? {
-      visitNumber: formattedVisitorData[0].visitNumber,
-      firstName: formattedVisitorData[0].firstName,
-      lastName: formattedVisitorData[0].lastName,
-      birthdate: formattedVisitorData[0].birthdate,
-      patientCreatedAt: formattedVisitorData[0].patientCreatedAt,
-      visitDate: formattedVisitorData[0].visitDate
+    console.log('VTS data sample for Excel:', visitorData.length > 0 ? {
+      visitNumber: visitorData[0].visitNumber,
+      firstName: visitorData[0].firstName,
+      lastName: visitorData[0].lastName,
+      birthdate: visitorData[0].birthdate,
+      birthdateType: typeof visitorData[0].birthdate
     } : 'No data');
     
-    return { data: formattedVisitorData };
+    return { data: visitorData };
   } catch (error) {
     console.error('Error in getVisitorReportData:', error);
     return { error: 'ไม่สามารถดึงข้อมูลผู้ป่วยได้' };
@@ -3301,18 +3299,26 @@ async function getSalesReportData({ dateFrom, dateTo, department }) {
         lastName: patient.lastName || '-',
         age: patient.age || 0,
         patientRights: visit.patientRights || '-',
-        orderDate: order.orderDate ? (() => {
-          const date = new Date(order.orderDate);
+        department: visit.department || '-',
+        orderDate: (() => {
+          // ใช้ orderDate ก่อน ถ้าไม่มี/ผิด ให้ fallback เป็น createdAt หรือ visitDate
+          const src = order.orderDate || order.createdAt || visit.visitDate || null;
+          if (!src) return '-';
+          const date = new Date(src);
           // ตรวจสอบว่า date ถูกต้องหรือไม่
           if (isNaN(date.getTime())) {
-            console.warn('Invalid orderDate:', order.orderDate);
+            // ถ้า src เป็น string และมีรูปแบบ DD/MM/YYYY อยู่แล้ว ให้ส่งคืนตามเดิม
+            if (typeof src === 'string' && src.includes('/')) {
+              return src;
+            }
+            console.warn('Invalid date source for order:', src);
             return '-';
           }
           const day = date.getDate().toString().padStart(2, '0');
           const month = (date.getMonth() + 1).toString().padStart(2, '0');
-          const year = (date.getFullYear() + 543).toString();
+          const year = (date.getFullYear() + 543).toString(); // แปลงเป็นปี พ.ศ.
           return `${day}/${month}/${year}`;
-        })() : '-',
+        })(),
         paymentMethod: order.paymentMethod || '-',
         totalAmount: order.totalAmount || 0
       };
@@ -4568,47 +4574,247 @@ app.post('/api/printers/:printerName/test', async (req, res) => {
 // Optimized search medical records with server-side filtering and joining
 app.get('/api/medical-records/search', async (req, res) => {
   try {
-    const { q: query } = req.query;
-    
-    if (!query || query.trim() === '') {
+    const { q: query, limit: limitParam, visitsLimit: visitsLimitParam } = req.query;
+
+    if (!query || String(query).trim() === '') {
       return res.json([]);
     }
 
-    console.log('Searching medical records for:', query);
-    const searchTerm = query.trim();
-    const searchRegex = new RegExp(searchTerm, 'i');
+    const searchTerm = String(query).trim();
+    const limit = Math.max(1, Math.min(parseInt(limitParam) || 50, 1000));
+    const visitsLimit = Math.max(1, Math.min(parseInt(visitsLimitParam) || 3, 20));
 
-    // Simple search from patients collection
-    const patients = await db.collection('patients').find({
-      $or: [
-        { firstName: searchRegex },
-        { lastName: searchRegex },
-        { idCard: searchRegex },
-        { phoneNumber: searchRegex },
-        { ln: searchRegex }
-      ]
-    }).toArray();
+    // Escape regex special chars
+    const escapeRegex = (s) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    const escaped = escapeRegex(searchTerm);
+    const isDigits = /^[0-9]+$/.test(searchTerm);
 
-    console.log(`Found ${patients.length} patients matching query: ${query}`);
+    // Build patient match for fast, anchored searches where possible
+    const patientMatch = isDigits
+      ? {
+          $or: [
+            { idCard: { $regex: `^${escaped}` } },
+            { phoneNumber: { $regex: `^${escaped}` } },
+            { ln: { $regex: escaped, $options: 'i' } },
+          ],
+        }
+      : {
+          $or: [
+            { firstName: { $regex: `^${escaped}`, $options: 'i' } },
+            { lastName: { $regex: `^${escaped}`, $options: 'i' } },
+            { ln: { $regex: escaped, $options: 'i' } },
+          ],
+        };
 
-    // Transform to medical records format
-    const medicalRecords = patients.map(patient => ({
-      id: patient._id.toString(),
-      patientName: `${patient.firstName || ''} ${patient.lastName || ''}`.trim() || 'ไม่ระบุชื่อ',
-      patientId: patient.ln || 'N/A',
-      idCardNumber: patient.idCard || null,
-      phone: patient.phoneNumber || null,
-      address: patient.address || 'ไม่ระบุที่อยู่',
-      totalVisits: 0, // Will be updated when we add visit lookup
-      lastVisit: 'ไม่มีข้อมูล',
-      status: 'active',
-      recentTests: [],
-      visits: []
-    }));
+    console.log('Searching medical records for:', searchTerm, { limit, visitsLimit });
 
-    console.log(`Found ${medicalRecords.length} medical records for query: ${query}`);
+    const medicalRecords = await db.collection('patients')
+      .aggregate([
+        { $match: patientMatch },
+        { $limit: limit },
+        {
+          $lookup: {
+            from: 'visits',
+            let: { pid: '$_id' },
+            pipeline: [
+              {
+                $match: {
+                  $expr: {
+                    $or: [
+                      { $eq: ['$patientId', '$$pid'] },
+                      { $eq: ['$patientId', { $toString: '$$pid' }] }
+                    ]
+                  }
+                }
+              },
+              { $sort: { visitDate: -1 } },
+              { $limit: visitsLimit },
+              {
+                $lookup: {
+                  from: 'orders',
+                  localField: '_id',
+                  foreignField: 'visitId',
+                  as: 'orders',
+                },
+              },
+              {
+                $lookup: {
+                  from: 'results',
+                  let: { orderIds: '$orders._id' },
+                  pipeline: [
+                    { $match: { $expr: { $in: ['$orderId', '$$orderIds'] } } },
+                  ],
+                  as: 'results',
+                },
+              },
+              {
+                $project: {
+                  visitId: '$_id',
+                  visitNumber: 1,
+                  visitDate: 1,
+                  visitTime: 1,
+                  department: { $ifNull: ['$department', 'ไม่ระบุ'] },
+                  orders: {
+                    $map: {
+                      input: '$orders',
+                      as: 'order',
+                      in: {
+                        $map: {
+                          input: { $ifNull: ['$$order.labOrders', []] },
+                          as: 'labOrder',
+                          in: {
+                            orderId: '$$order._id',
+                            testName: { $ifNull: ['$$labOrder.testName', 'ไม่ระบุ'] },
+                            testCode: { $ifNull: ['$$labOrder.code', ''] },
+                            price: { $ifNull: ['$$labOrder.price', 0] },
+                            status: { $ifNull: ['$$order.status', 'pending'] },
+                          },
+                        },
+                      },
+                    },
+                  },
+                  results: {
+                    $map: {
+                      input: '$results',
+                      as: 'result',
+                      in: {
+                        $map: {
+                          input: { $ifNull: ['$$result.testResults', []] },
+                          as: 'testResult',
+                          in: {
+                            resultId: '$$result._id',
+                            testName: { $ifNull: ['$$testResult.testName', 'ไม่ระบุ'] },
+                            result: { $ifNull: ['$$testResult.result', 'รอผล'] },
+                            normalRange: { $ifNull: ['$$testResult.normalRange', ''] },
+                            status: { $ifNull: ['$$testResult.status', 'pending'] },
+                            attachedFiles: {
+                              $map: {
+                                input: { $ifNull: ['$$result.attachedFiles', []] },
+                                as: 'file',
+                                in: {
+                                  fileName: { $ifNull: ['$$file.fileName', 'ไฟล์แนบ'] },
+                                  fileData: { $ifNull: ['$$file.fileData', ''] },
+                                  fileType: { $ifNull: ['$$file.fileType', 'application/octet-stream'] },
+                                  uploadDate: { $ifNull: ['$$file.uploadDate', '$$result.createdAt'] },
+                                },
+                              },
+                            },
+                          },
+                        },
+                      },
+                    },
+                  },
+                },
+              },
+            ],
+            as: 'visits',
+          },
+        },
+        {
+          $addFields: {
+            totalVisits: { $size: '$visits' },
+            lastVisitDate: { $max: '$visits.visitDate' },
+          },
+        },
+        { $sort: { lastVisitDate: -1 } },
+        {
+          $project: {
+            _id: 0,
+            id: { $toString: '$_id' },
+            patientName: {
+              $trim: {
+                input: {
+                  $concat: [
+                    { $ifNull: ['$firstName', ''] },
+                    ' ',
+                    { $ifNull: ['$lastName', ''] },
+                  ],
+                },
+              },
+            },
+            patientId: { $ifNull: ['$ln', 'N/A'] },
+            idCardNumber: { $ifNull: ['$idCard', null] },
+            phone: { $ifNull: ['$phoneNumber', null] },
+            address: { $ifNull: ['$address', 'ไม่ระบุที่อยู่'] },
+            totalVisits: 1,
+            lastVisit: {
+              $cond: [
+                { $gt: ['$lastVisitDate', null] },
+                {
+                  $dateToString: {
+                    format: '%d/%m/%Y',
+                    date: { $dateFromString: { dateString: '$lastVisitDate' } },
+                    timezone: 'Asia/Bangkok',
+                  },
+                },
+                'ไม่มีข้อมูล',
+              ],
+            },
+            status: { $literal: 'active' },
+            recentTests: {
+              $slice: [
+                {
+                  $reduce: {
+                    input: '$visits.orders',
+                    initialValue: [],
+                    in: {
+                      $setUnion: [
+                        '$$value',
+                        {
+                          $map: {
+                            input: {
+                              $reduce: {
+                                input: '$$this',
+                                initialValue: [],
+                                in: { $concatArrays: ['$$value', '$$this'] },
+                              },
+                            },
+                            as: 'order',
+                            in: '$$order.testName',
+                          },
+                        },
+                      ],
+                    },
+                  },
+                },
+                5,
+              ],
+            },
+            visits: {
+              $map: {
+                input: '$visits',
+                as: 'v',
+                in: {
+                  visitId: { $toString: '$$v.visitId' },
+                  visitNumber: '$$v.visitNumber',
+                  visitDate: '$$v.visitDate',
+                  visitTime: '$$v.visitTime',
+                  department: '$$v.department',
+                  orders: {
+                    $reduce: {
+                      input: '$$v.orders',
+                      initialValue: [],
+                      in: { $concatArrays: ['$$value', '$$this'] },
+                    },
+                  },
+                  results: {
+                    $reduce: {
+                      input: '$$v.results',
+                      initialValue: [],
+                      in: { $concatArrays: ['$$value', '$$this'] },
+                    },
+                  },
+                },
+              },
+            },
+          },
+        },
+        { $limit: limit },
+      ])
+      .toArray();
+
+    console.log(`Found ${medicalRecords.length} medical records for query: ${searchTerm}`);
     res.json(medicalRecords);
-    
   } catch (error) {
     console.error('Error searching medical records:', error);
     res.status(500).json({ error: 'ไม่สามารถค้นหาข้อมูลเวชระเบียนได้' });
@@ -4832,7 +5038,250 @@ app.get('/api/medical-records/all', async (req, res) => {
   }
 });
 
-// ==================== END MEDICAL RECORDS API ====================
+// Helper function to get import report data (for Excel export)
+async function getImportReportData({ dateFrom, dateTo, department }) {
+  console.log('=== getImportReportData called ===');
+  console.log('Params:', { dateFrom, dateTo, department });
+
+  try {
+    // Set date range for Thailand timezone (UTC+7)
+    let startDate, endDate;
+    if (dateFrom && dateTo) {
+      // Convert to Thailand timezone
+      startDate = new Date(dateFrom + 'T00:00:00+07:00');
+      endDate = new Date(dateTo + 'T23:59:59+07:00');
+    } else {
+      // Default to today for import report
+      const now = new Date();
+      // Convert to Thailand timezone
+      const thailandOffset = 7 * 60 * 60 * 1000; // UTC+7 in milliseconds
+      const thailandNow = new Date(now.getTime() + thailandOffset);
+      
+      startDate = new Date(thailandNow);
+      startDate.setHours(0, 0, 0, 0);
+      endDate = new Date(thailandNow);
+      endDate.setHours(23, 59, 59, 999);
+    }
+
+    console.log('Date range (Thailand timezone):', { startDate, endDate });
+
+    // Build query filter for visits - filter by visit creation date (createdAt)
+    let visitQuery = {
+      createdAt: {
+        $gte: startDate,
+        $lte: endDate
+      }
+    };
+    
+    if (department && department !== 'all' && department !== 'ทุกหน่วยงาน') {
+      // Convert underscores to spaces for department matching
+      const normalizedDepartment = department.replace(/_/g, ' ');
+      visitQuery.department = normalizedDepartment;
+      console.log(`Import report department filter: '${department}' -> '${normalizedDepartment}'`);
+    }
+
+    // Get visits with patient data using aggregation
+    const importData = await db.collection('visits').aggregate([
+      { $match: visitQuery },
+      {
+        $lookup: {
+          from: 'patients',
+          let: { patientIdStr: '$patientId' },
+          pipeline: [
+            {
+              $match: {
+                $expr: {
+                  $eq: ['$_id', { $toObjectId: '$$patientIdStr' }]
+                }
+              }
+            }
+          ],
+          as: 'patient'
+        }
+      },
+      { $unwind: { path: '$patient', preserveNullAndEmptyArrays: true } },
+      {
+        $project: {
+          visitNumber: '$visitNumber',
+          referenceNumber: '$visitNumber',
+          ln: '$patient.ln',
+          idCard: '$patient.idCard',
+          title: '$patient.title',
+          prefix: '$patient.title',
+          firstName: '$patient.firstName',
+          lastName: '$patient.lastName',
+          age: '$patient.age',
+          birthdate: '$patient.birthDate',
+          gender: '$patient.gender',
+          phoneNumber: '$patient.phoneNumber',
+          phone: '$patient.phoneNumber',
+          weight: '$weight',
+          height: '$height',
+          bloodPressure: '$bloodPressure',
+          pulse: '$pulse',
+          address: '$patient.address',
+          department: '$department',
+          referringOrganization: '$referringOrganization',
+          organization: '$referringOrganization',
+          patientRights: '$patientRights',
+          rights: '$patientRights',
+          patientCreatedAt: '$patient.createdAt',
+          visitDate: '$visitDate'
+        }
+      },
+      { $sort: { visitDate: -1 } }
+    ]).toArray();
+
+    console.log('Import data count:', importData.length);
+
+    return {
+      stats: {
+        todayPatients: importData.length,
+        todayTests: 0,
+        todayRevenue: 0,
+        growth: 0
+      },
+      data: importData
+    };
+
+  } catch (error) {
+    console.error('Error in getImportReportData:', error);
+    throw error;
+  }
+}
+
+// Handle import report (import)
+async function handleImportReport(req, res, { dateFrom, dateTo, department }) {
+  console.log('=== IMPORT REPORT HANDLER CALLED ===');
+  console.log('Parameters:', { dateFrom, dateTo, department });
+  try {
+    // Set date range for Thailand timezone (UTC+7)
+    let startDate, endDate;
+    if (dateFrom && dateTo) {
+      // Convert to Thailand timezone
+      startDate = new Date(dateFrom + 'T00:00:00+07:00');
+      endDate = new Date(dateTo + 'T23:59:59+07:00');
+    } else {
+      // Default to today for import report
+      const now = new Date();
+      // Convert to Thailand timezone
+      const thailandOffset = 7 * 60 * 60 * 1000; // UTC+7 in milliseconds
+      const thailandNow = new Date(now.getTime() + thailandOffset);
+      
+      startDate = new Date(thailandNow);
+      startDate.setHours(0, 0, 0, 0);
+      endDate = new Date(thailandNow);
+      endDate.setHours(23, 59, 59, 999);
+    }
+
+    console.log('Date range (Thailand timezone):', { startDate, endDate });
+
+    // Build query filter for visits - filter by visit creation date (createdAt)
+    let visitQuery = {
+      createdAt: {
+        $gte: startDate,
+        $lte: endDate
+      }
+    };
+    
+    console.log('Visit creation date query:', visitQuery);
+
+    if (department && department !== 'all' && department !== 'ทุกหน่วยงาน') {
+      // Convert underscores to spaces for department matching
+      const normalizedDepartment = department.replace(/_/g, ' ');
+      visitQuery.department = normalizedDepartment;
+      console.log(`Import report department filter: '${department}' -> '${normalizedDepartment}'`);
+    }
+
+    // Debug: Log the query
+    console.log('Import report query:', visitQuery);
+    
+    // Check visits in date range
+    const visitsInRange = await db.collection('visits').countDocuments(visitQuery);
+    console.log('Visits created in date range:', visitsInRange);
+    
+    // Get visits with patient data using aggregation
+    const importData = await db.collection('visits').aggregate([
+      { $match: visitQuery },
+      {
+        $lookup: {
+          from: 'patients',
+          let: { patientIdStr: '$patientId' },
+          pipeline: [
+            {
+              $match: {
+                $expr: {
+                  $eq: ['$_id', { $toObjectId: '$$patientIdStr' }]
+                }
+              }
+            }
+          ],
+          as: 'patient'
+        }
+      },
+      { $unwind: { path: '$patient', preserveNullAndEmptyArrays: true } },
+      {
+        $project: {
+          visitNumber: '$visitNumber',
+          referenceNumber: '$visitNumber',
+          ln: '$patient.ln',
+          idCard: '$patient.idCard',
+          title: '$patient.title',
+          prefix: '$patient.title',
+          firstName: '$patient.firstName',
+          lastName: '$patient.lastName',
+          age: '$patient.age',
+          birthdate: '$patient.birthDate',
+          gender: '$patient.gender',
+          phoneNumber: '$patient.phoneNumber',
+          phone: '$patient.phoneNumber',
+          weight: '$weight',
+          height: '$height',
+          bloodPressure: '$bloodPressure',
+          pulse: '$pulse',
+          address: '$patient.address',
+          department: '$department',
+          referringOrganization: '$referringOrganization',
+          organization: '$referringOrganization',
+          patientRights: '$patientRights',
+          rights: '$patientRights',
+          patientCreatedAt: '$patient.createdAt',
+          visitDate: '$visitDate'
+        }
+      },
+      { $sort: { visitDate: -1 } }
+    ]).toArray();
+
+    console.log('Import data count:', importData.length);
+    console.log('Sample import data:', importData[0] || 'No data');
+
+    // Calculate stats
+    const todayPatients = importData.length;
+    const todayTests = 0; // Import report doesn't track tests
+    const todayRevenue = 0; // Import report doesn't track revenue
+    const growth = 0;
+
+    const response = {
+      stats: {
+        todayPatients,
+        todayTests,
+        todayRevenue,
+        growth
+      },
+      data: importData
+    };
+
+    console.log('Import report response stats:', response.stats);
+    res.json(response);
+
+  } catch (error) {
+    console.error('Error in handleImportReport:', error);
+    res.status(500).json({ 
+      error: 'ไม่สามารถสร้างรายงาน Import ได้',
+      details: error.message 
+    });
+  }
+}
 
 // Error handling middleware
 app.use((err, req, res, next) => {

@@ -274,7 +274,7 @@ class ExcelTemplateProcessor {
     // Create header row manually at row 4
     const headerRow = worksheet.getRow(4);
     const headerValues = [
-      'เลขอ้างอิง', 'LN', 'คำนำหน้า', 'ชื่อ', 'นามสกุล', 'อายุ', 'สิทธิ', 'วันที่', 'วิธีการชำระเงิน'
+      'เลขอ้างอิง', 'LN', 'คำนำหน้า', 'ชื่อ', 'นามสกุล', 'อายุ', 'สิทธิ', 'หน่วยงาน', 'วันที่', 'วิธีการชำระเงิน'
     ];
     
     // Add item column headers (only for items with actual sales)
@@ -292,7 +292,7 @@ class ExcelTemplateProcessor {
     headerRow.values = headerValues;
     
     // Add dynamic item columns
-    const baseColumnCount = 9;
+    const baseColumnCount = 10;
     itemColumns.forEach((columnName, index) => {
       console.log(`Adding column ${index + 1}: ${columnName}`);
       const column = worksheet.getColumn(baseColumnCount + 1 + index);
@@ -362,6 +362,7 @@ class ExcelTemplateProcessor {
         item.lastName || '-',
         item.age || '-',
         item.patientRights || '-',
+        item.department || '-',
         item.orderDate ? (() => {
           if (typeof item.orderDate === 'string' && item.orderDate.includes('/')) {
             // Already formatted as DD/MM/YYYY BE

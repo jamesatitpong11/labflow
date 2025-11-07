@@ -142,22 +142,22 @@ export default function PrinterTest() {
               </Button>
 
               <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-                <h4 className="font-medium text-blue-900 mb-2">รูปแบบสติ๊กเกอร์ใหม่ (3 ดวง):</h4>
+                <h4 className="font-medium text-blue-900 mb-2">สติ๊กเกอร์ 1 ดวง (50x25mm):</h4>
                 <div className="text-sm text-blue-800 space-y-2">
                   <div>
-                    <strong>ขนาด:</strong> 105mm x 25mm (3 ดวงต่อแผ่น)
+                    <strong>ขนาด:</strong> 50mm x 25mm (สติ๊กเกอร์เดี่ยว)
                   </div>
                   <div>
-                    <strong>เนื้อหาแต่ละดวง:</strong>
+                    <strong>เนื้อหา:</strong>
                     <ul className="ml-4 mt-1 space-y-1">
                       <li>• หมายเลข Visit: V{Date.now().toString().slice(-6)}</li>
                       <li>• คำนำหน้า + ชื่อ: นายทดสอบ</li>
                       <li>• นามสกุล: ระบบ</li>
                       <li>• อายุ + วันที่: อายุ 35 ปี {new Date().toLocaleDateString('th-TH')}</li>
-                      <li>• บาร์โค้ด: CODE128</li>
+                      <li>• บาร์โค้ด: CODE128 (SVG คมชัด)</li>
                     </ul>
                     <div className="mt-2 text-xs text-blue-600">
-                      <strong>หมายเหตุ:</strong> ใช้ฟอนต์ Itim สำหรับภาษาไทยที่สวยงาม
+                      <strong>หมายเหตุ:</strong> ใช้เทมเพลต 50x25mm แบบเดียวกับหน้า Visit และลงทะเบียน
                     </div>
                   </div>
                 </div>

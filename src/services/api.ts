@@ -828,8 +828,12 @@ class ApiService {
   }
 
   // Medical Records API - Optimized search
-  async searchMedicalRecords(query: string): Promise<any[]> {
-    return this.request<any[]>(`/medical-records/search?q=${encodeURIComponent(query)}`);
+  async searchMedicalRecords(query: string, opts?: { limit?: number; visitsLimit?: number }): Promise<any[]> {
+    const params: string[] = [`q=${encodeURIComponent(query)}`];
+    if (opts?.limit !== undefined) params.push(`limit=${opts.limit}`);
+    if (opts?.visitsLimit !== undefined) params.push(`visitsLimit=${opts.visitsLimit}`);
+    const qs = params.join('&');
+    return this.request<any[]>(`/medical-records/search?${qs}`);
   }
 
   async getAllMedicalRecords(): Promise<any[]> {

@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, useRef } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -36,6 +36,7 @@ import { usePrinter } from "@/hooks/use-printer";
 
 
 export default function LabOrders() {
+  const visitInputRef = useRef<HTMLInputElement | null>(null);
   const { user } = useAuth();
   const [selectedTests, setSelectedTests] = useState<string[]>([]);
   const [selectedGroups, setSelectedGroups] = useState<string[]>([]);
@@ -708,6 +709,21 @@ export default function LabOrders() {
       });
     } finally {
       setIsCancelling(false);
+      // Electron: ensure window/webContents regain focus before returning focus to input
+      try {
+        if (typeof window !== 'undefined' && (window as any).electronAPI?.focusWindow) {
+          await (window as any).electronAPI.focusWindow();
+        } else {
+          // Web fallback
+          window.focus();
+        }
+      } catch (focusErr) {
+        console.warn('focusWindow failed:', focusErr);
+      }
+      // Restore focus to visit number input for next patient entry
+      setTimeout(() => {
+        visitInputRef.current?.focus();
+      }, 0);
     }
   };
 
@@ -1601,6 +1617,7 @@ export default function LabOrders() {
                         <Search className="absolute left-2.5 top-1/2 transform -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
                         <Input 
                           id="visit-number"
+                          ref={visitInputRef}
                           placeholder="กรอกหมายเลข Visit (เช่น 24010001) หรือชื่อคนไข้"
                           value={visitNumber}
                           onChange={(e) => handleVisitNumberChange(e.target.value)}

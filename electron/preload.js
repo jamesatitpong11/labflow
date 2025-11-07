@@ -37,6 +37,8 @@ contextBridge.exposeInMainWorld('electronAPI', {
   maximizeWindow: () => ipcRenderer.invoke('maximize-window'),
   closeWindow: () => ipcRenderer.invoke('close-window'),
   isMaximized: () => ipcRenderer.invoke('is-maximized'),
+  // Focus helpers
+  focusWindow: () => ipcRenderer.invoke('focus-window'),
 
   // Data export/import
   exportData: (data, format) => ipcRenderer.invoke('export-data', data, format),

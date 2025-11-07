@@ -333,19 +333,38 @@ export default function Reports() {
   };
 
   // Format date to DD/MM/YYYY (Buddhist Era - พ.ศ.)
-  const formatDateThai = (dateString: string) => {
-    if (!dateString) return '';
-    const date = new Date(dateString);
-    
-    // ตรวจสอบว่า date ถูกต้องหรือไม่
-    if (isNaN(date.getTime())) {
-      console.warn('Invalid date string:', dateString);
-      return dateString; // ส่งคืน string เดิมถ้า parse ไม่ได้
+  const formatDateThai = (dateInput: string) => {
+    if (!dateInput) return '';
+
+    // กรณีเป็นรูปแบบ DD/MM/YYYY อยู่แล้ว ให้ตรวจสอบปีและไม่บวก 543 ซ้ำ
+    if (typeof dateInput === 'string' && dateInput.includes('/')) {
+      const parts = dateInput.split('/');
+      if (parts.length === 3) {
+        const [dayStr, monthStr, yearStr] = parts;
+        const dayNum = parseInt(dayStr, 10);
+        const monthNum = parseInt(monthStr, 10);
+        const yearNum = parseInt(yearStr, 10);
+        if (!isNaN(dayNum) && !isNaN(monthNum) && !isNaN(yearNum)) {
+          const day = dayNum.toString().padStart(2, '0');
+          const month = monthNum.toString().padStart(2, '0');
+          // ถ้าปี >= 2400 ถือว่าเป็นปี พ.ศ. แล้ว ไม่บวก 543 ซ้ำ
+          const year = yearNum >= 2400 ? yearNum : yearNum + 543;
+          return `${day}/${month}/${year}`;
+        }
+      }
+      // ถ้า parse ไม่ได้ ก็ส่งคืนค่าต้นฉบับ
+      return dateInput;
     }
-    
+
+    // กรณีอื่นๆ: แปลงด้วย Date แล้วบวก 543
+    const date = new Date(dateInput);
+    if (isNaN(date.getTime())) {
+      console.warn('Invalid date input:', dateInput);
+      return typeof dateInput === 'string' ? dateInput : '';
+    }
     const day = date.getDate().toString().padStart(2, '0');
     const month = (date.getMonth() + 1).toString().padStart(2, '0');
-    const year = date.getFullYear() + 543; // แปลงเป็นปี พ.ศ.
+    const year = date.getFullYear() + 543;
     return `${day}/${month}/${year}`;
   };
 
@@ -865,6 +884,7 @@ export default function Reports() {
                             <th className="text-left p-2 font-medium text-muted-foreground text-xs">นามสกุล</th>
                             <th className="text-left p-2 font-medium text-muted-foreground text-xs">อายุ</th>
                             <th className="text-left p-2 font-medium text-muted-foreground text-xs">สิทธิ</th>
+                            <th className="text-left p-2 font-medium text-muted-foreground text-xs">หน่วยงาน</th>
                             <th className="text-left p-2 font-medium text-muted-foreground text-xs">วันที่</th>
                             <th className="text-left p-2 font-medium text-muted-foreground text-xs">วิธีการชำระเงิน</th>
                             {itemColumns.map((columnName, index) => (
@@ -878,7 +898,7 @@ export default function Reports() {
                         <tbody>
                           {isLoadingReport ? (
                             <tr>
-                              <td colSpan={10 + itemColumns.length} className="p-8 text-center">
+                              <td colSpan={11 + itemColumns.length} className="p-8 text-center">
                                 <div className="flex items-center justify-center gap-2">
                                   <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
                                   <span className="text-muted-foreground">กำลังโหลดข้อมูลรายงาน...</span>
@@ -887,7 +907,7 @@ export default function Reports() {
                             </tr>
                           ) : salesData.length === 0 ? (
                             <tr>
-                              <td colSpan={10 + itemColumns.length} className="p-8 text-center text-muted-foreground">
+                              <td colSpan={11 + itemColumns.length} className="p-8 text-center text-muted-foreground">
                                 ไม่มีข้อมูลการขายในช่วงวันที่ที่เลือก
                               </td>
                             </tr>
@@ -901,6 +921,7 @@ export default function Reports() {
                                 <td className="p-2 text-xs">{sale.lastName || '-'}</td>
                                 <td className="p-2 text-xs">{sale.age || '-'}</td>
                                 <td className="p-2 text-xs">{sale.patientRights || '-'}</td>
+                                <td className="p-2 text-xs">{sale.department || '-'}</td>
                                 <td className="p-2 text-xs">{sale.orderDate ? formatDateThai(sale.orderDate) : '-'}</td>
                                 <td className="p-2 text-xs">{sale.paymentMethod || '-'}</td>
                                 {itemColumns.map((columnName, colIndex) => (
